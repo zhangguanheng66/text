@@ -1,231 +1,129 @@
-import os
-import xml.etree.ElementTree as ET
-import glob
-import io
-import codecs
+import torch
+import logging
+from torchtext.utils import download_from_url, extract_archive
+from torchtext.vocab import build_vocab_from_iterator
+from torchtext.data.utils import get_tokenizer
+from torchtext.vocab import Vocab
+from torchtext.data.functional import read_text_iterator, create_data_from_iterator
 
-from .. import data
+URLS = {
+    'Multi30k': ['http://www.quest.dcs.shef.ac.uk/wmt16_files_mmt/training.tar.gz',
+                 'http://www.quest.dcs.shef.ac.uk/wmt16_files_mmt/validation.tar.gz',
+                 'http://www.quest.dcs.shef.ac.uk/wmt17_files_mmt/mmt_task1_test2016.tar.gz']
+}
 
 
-class TranslationDataset(data.Dataset):
-    """Defines a dataset for machine translation."""
+def _setup_datasets(url, languages=('de', 'en'),
+                    tokenizer=(get_tokenizer("spacy", language='de'),
+                               get_tokenizer("spacy", language='en')),
+                    root='.data', vocab=(None, None),
+                    removed_tokens=['<unk>']):
+    src_vocab, tgt_vocab = vocab
+    src_language, tgt_language = languages
+    src_tokenizer, tgt_tokenizer = tokenizer
+    dataset_tar = download_from_url(url, root=root)
+    extracted_files = extract_archive(dataset_tar)
 
-    @staticmethod
-    def sort_key(ex):
-        return data.interleave_keys(len(ex.src), len(ex.trg))
+    src_path = None
+    tgt_path = None
+    for fname in extracted_files:
+        src_path = fname if src_language in fname else src_path
+        tgt_path = fname if tgt_language in fname else tgt_path
+    if not (src_path and tgt_path):
+        raise TypeError("Source files are not found for the input languages")
 
-    def __init__(self, path, exts, fields, **kwargs):
-        """Create a TranslationDataset given paths and fields.
+    if src_vocab is None:
+        logging.info('Building src Vocab based on train data')
+        src_vocab = build_vocab_from_iterator(read_text_iterator(src_path, src_tokenizer))
+    else:
+        if not isinstance(src_vocab, Vocab):
+            raise TypeError("Passed src vocabulary is not of type Vocab")
+    logging.info('src Vocab has {} entries'.format(len(src_vocab)))
 
+    if tgt_vocab is None:
+        logging.info('Building tgt Vocab based on train data')
+        tgt_vocab = build_vocab_from_iterator(read_text_iterator(tgt_path, tgt_tokenizer))
+    else:
+        if not isinstance(tgt_vocab, Vocab):
+            raise TypeError("Passed tgt vocabulary is not of type Vocab")
+    logging.info('tgt Vocab has {} entries'.format(len(tgt_vocab)))
+
+    logging.info('Creating data')
+    src_data = list(create_data_from_iterator(src_vocab,
+                                              read_text_iterator(src_path, src_tokenizer),
+                                              removed_tokens))
+    tgt_data = list(create_data_from_iterator(tgt_vocab,
+                                              read_text_iterator(tgt_path, tgt_tokenizer),
+                                              removed_tokens))
+    return TranslationDataset(list(zip(src_data, tgt_data)), (src_vocab, tgt_vocab))
+
+
+class TranslationDataset(torch.utils.data.Dataset):
+    """Defines a dataset for language modeling.
+       Currently, we only support the following datasets:
+             - WikiText2
+             - WikiText103
+             - PennTreebank
+    """
+
+    def __init__(self, data, vocab):
+        """Initiate language modeling dataset.
         Arguments:
-            path: Common prefix of paths to the data files for both languages.
-            exts: A tuple containing the extension to path for each language.
-            fields: A tuple containing the fields that will be used for data
-                in each language.
-            Remaining keyword arguments: Passed to the constructor of
-                data.Dataset.
-        """
-        if not isinstance(fields[0], (tuple, list)):
-            fields = [('src', fields[0]), ('trg', fields[1])]
-
-        src_path, trg_path = tuple(os.path.expanduser(path + x) for x in exts)
-
-        examples = []
-        with io.open(src_path, mode='r', encoding='utf-8') as src_file, \
-                io.open(trg_path, mode='r', encoding='utf-8') as trg_file:
-            for src_line, trg_line in zip(src_file, trg_file):
-                src_line, trg_line = src_line.strip(), trg_line.strip()
-                if src_line != '' and trg_line != '':
-                    examples.append(data.Example.fromlist(
-                        [src_line, trg_line], fields))
-
-        super(TranslationDataset, self).__init__(examples, fields, **kwargs)
-
-    @classmethod
-    def splits(cls, exts, fields, path=None, root='.data',
-               train='train', validation='val', test='test', **kwargs):
-        """Create dataset objects for splits of a TranslationDataset.
-
-        Arguments:
-            exts: A tuple containing the extension to path for each language.
-            fields: A tuple containing the fields that will be used for data
-                in each language.
-            path (str): Common prefix of the splits' file paths, or None to use
-                the result of cls.download(root).
-            root: Root dataset storage directory. Default is '.data'.
-            train: The prefix of the train data. Default: 'train'.
-            validation: The prefix of the validation data. Default: 'val'.
-            test: The prefix of the test data. Default: 'test'.
-            Remaining keyword arguments: Passed to the splits method of
-                Dataset.
-        """
-        if path is None:
-            path = cls.download(root)
-
-        train_data = None if train is None else cls(
-            os.path.join(path, train), exts, fields, **kwargs)
-        val_data = None if validation is None else cls(
-            os.path.join(path, validation), exts, fields, **kwargs)
-        test_data = None if test is None else cls(
-            os.path.join(path, test), exts, fields, **kwargs)
-        return tuple(d for d in (train_data, val_data, test_data)
-                     if d is not None)
-
-
-class Multi30k(TranslationDataset):
-    """The small-dataset WMT 2016 multimodal task, also known as Flickr30k"""
-
-    urls = ['http://www.quest.dcs.shef.ac.uk/wmt16_files_mmt/training.tar.gz',
-            'http://www.quest.dcs.shef.ac.uk/wmt16_files_mmt/validation.tar.gz',
-            'http://www.quest.dcs.shef.ac.uk/'
-            'wmt17_files_mmt/mmt_task1_test2016.tar.gz']
-    name = 'multi30k'
-    dirname = ''
-
-    @classmethod
-    def splits(cls, exts, fields, root='.data',
-               train='train', validation='val', test='test2016', **kwargs):
-        """Create dataset objects for splits of the Multi30k dataset.
-
-        Arguments:
-            exts: A tuple containing the extension to path for each language.
-            fields: A tuple containing the fields that will be used for data
-                in each language.
-            root: Root dataset storage directory. Default is '.data'.
-            train: The prefix of the train data. Default: 'train'.
-            validation: The prefix of the validation data. Default: 'val'.
-            test: The prefix of the test data. Default: 'test'.
-            Remaining keyword arguments: Passed to the splits method of
-                Dataset.
+            data: a tensor of tokens. tokens are ids after
+                numericalizing the string tokens.
+                torch.Tensor([token_id_1, token_id_2, token_id_3, token_id1]).long()
+            vocab: Vocabulary object used for dataset.
+        Examples:
+            >>> from torchtext.vocab import build_vocab_from_iterator
+            >>> data = torch.Tensor([token_id_1, token_id_2,
+                                     token_id_3, token_id_1]).long()
+            >>> vocab = build_vocab_from_iterator([['language', 'modeling']])
+            >>> dataset = LanguageModelingDataset(data, vocab)
         """
 
-        # TODO: This is a _HORRIBLE_ patch related to #208
-        # 'path' can be passed as a kwarg to the translation dataset constructor
-        # or has to be set (so the download wouldn't be duplicated). A good idea
-        # seems to rename the existence check variable from path to something else
-        if 'path' not in kwargs:
-            expected_folder = os.path.join(root, cls.name)
-            path = expected_folder if os.path.exists(expected_folder) else None
-        else:
-            path = kwargs['path']
-            del kwargs['path']
+        super(TranslationDataset, self).__init__()
+        self._data = data
+        self._vocab = vocab
 
-        return super(Multi30k, cls).splits(
-            exts, fields, path, root, train, validation, test, **kwargs)
+    def __getitem__(self, i):
+        return self._data[i]
 
+    def __len__(self):
+        return len(self._data)
 
-class IWSLT(TranslationDataset):
-    """The IWSLT 2016 TED talk translation task"""
+    def __iter__(self):
+        for x in self._data:
+            yield x
 
-    base_url = 'https://wit3.fbk.eu/archive/2016-01//texts/{}/{}/{}.tgz'
-    name = 'iwslt'
-    base_dirname = '{}-{}'
-
-    @classmethod
-    def splits(cls, exts, fields, root='.data',
-               train='train', validation='IWSLT16.TED.tst2013',
-               test='IWSLT16.TED.tst2014', **kwargs):
-        """Create dataset objects for splits of the IWSLT dataset.
-
-        Arguments:
-            exts: A tuple containing the extension to path for each language.
-            fields: A tuple containing the fields that will be used for data
-                in each language.
-            root: Root dataset storage directory. Default is '.data'.
-            train: The prefix of the train data. Default: 'train'.
-            validation: The prefix of the validation data. Default: 'val'.
-            test: The prefix of the test data. Default: 'test'.
-            Remaining keyword arguments: Passed to the splits method of
-                Dataset.
-        """
-        cls.dirname = cls.base_dirname.format(exts[0][1:], exts[1][1:])
-        cls.urls = [cls.base_url.format(exts[0][1:], exts[1][1:], cls.dirname)]
-        check = os.path.join(root, cls.name, cls.dirname)
-        path = cls.download(root, check=check)
-
-        train = '.'.join([train, cls.dirname])
-        validation = '.'.join([validation, cls.dirname])
-        if test is not None:
-            test = '.'.join([test, cls.dirname])
-
-        if not os.path.exists(os.path.join(path, train) + exts[0]):
-            cls.clean(path)
-
-        train_data = None if train is None else cls(
-            os.path.join(path, train), exts, fields, **kwargs)
-        val_data = None if validation is None else cls(
-            os.path.join(path, validation), exts, fields, **kwargs)
-        test_data = None if test is None else cls(
-            os.path.join(path, test), exts, fields, **kwargs)
-        return tuple(d for d in (train_data, val_data, test_data)
-                     if d is not None)
-
-    @staticmethod
-    def clean(path):
-        for f_xml in glob.iglob(os.path.join(path, '*.xml')):
-            print(f_xml)
-            f_txt = os.path.splitext(f_xml)[0]
-            with codecs.open(f_txt, mode='w', encoding='utf-8') as fd_txt:
-                root = ET.parse(f_xml).getroot()[0]
-                for doc in root.findall('doc'):
-                    for e in doc.findall('seg'):
-                        fd_txt.write(e.text.strip() + '\n')
-
-        xml_tags = ['<url', '<keywords', '<talkid', '<description',
-                    '<reviewer', '<translator', '<title', '<speaker']
-        for f_orig in glob.iglob(os.path.join(path, 'train.tags*')):
-            print(f_orig)
-            f_txt = f_orig.replace('.tags', '')
-            with codecs.open(f_txt, mode='w', encoding='utf-8') as fd_txt, \
-                    io.open(f_orig, mode='r', encoding='utf-8') as fd_orig:
-                for l in fd_orig:
-                    if not any(tag in l for tag in xml_tags):
-                        fd_txt.write(l.strip() + '\n')
+    def get_vocab(self):
+        return self._vocab
 
 
-class WMT14(TranslationDataset):
-    """The WMT 2014 English-German dataset, as preprocessed by Google Brain.
+def Multi30k(*args, **kwargs):
+    """ Defines IMDB datasets.
+        The labels includes:
+            - 0 : Negative
+            - 1 : Positive
+    Create sentiment analysis dataset: IMDB
+    Separately returns the training and test dataset
+    Arguments:
+        tokenizer: the tokenizer used to preprocess raw text data.
+            The default one is basic_english tokenizer in fastText. spacy tokenizer
+            is supported as well (see example below). A custom tokenizer is callable
+            function with input of a string and output of a token list.
+        root: Directory where the datasets are saved. Default: ".data"
+        vocab: Vocabulary used for dataset. If None, it will generate a new
+            vocabulary based on the train data set.
+        removed_tokens: removed tokens from output dataset (Default: '<unk>')
+    Examples:
+        >>> from torchtext.datasets import IMDB
+        >>> from torchtext.data.utils import get_tokenizer
+        >>> tokenizer = get_tokenizer("spacy")
+        >>> train_dataset, test_dataset = IMDB(tokenizer=tokenizer)
+        >>> vocab = train_dataset.get_vocab()
+    """
 
-    Though this download contains test sets from 2015 and 2016, the train set
-    differs slightly from WMT 2015 and 2016 and significantly from WMT 2017."""
-
-    urls = [('https://drive.google.com/uc?export=download&'
-             'id=0B_bZck-ksdkpM25jRUN2X2UxMm8', 'wmt16_en_de.tar.gz')]
-    name = 'wmt14'
-    dirname = ''
-
-    @classmethod
-    def splits(cls, exts, fields, root='.data',
-               train='train.tok.clean.bpe.32000',
-               validation='newstest2013.tok.bpe.32000',
-               test='newstest2014.tok.bpe.32000', **kwargs):
-        """Create dataset objects for splits of the WMT 2014 dataset.
-
-        Arguments:
-            exts: A tuple containing the extensions for each language. Must be
-                either ('.en', '.de') or the reverse.
-            fields: A tuple containing the fields that will be used for data
-                in each language.
-            root: Root dataset storage directory. Default is '.data'.
-            train: The prefix of the train data. Default:
-                'train.tok.clean.bpe.32000'.
-            validation: The prefix of the validation data. Default:
-                'newstest2013.tok.bpe.32000'.
-            test: The prefix of the test data. Default:
-                'newstest2014.tok.bpe.32000'.
-            Remaining keyword arguments: Passed to the splits method of
-                Dataset.
-        """
-        # TODO: This is a _HORRIBLE_ patch related to #208
-        # 'path' can be passed as a kwarg to the translation dataset constructor
-        # or has to be set (so the download wouldn't be duplicated). A good idea
-        # seems to rename the existence check variable from path to something else
-        if 'path' not in kwargs:
-            expected_folder = os.path.join(root, cls.name)
-            path = expected_folder if os.path.exists(expected_folder) else None
-        else:
-            path = kwargs['path']
-            del kwargs['path']
-
-        return super(WMT14, cls).splits(
-            exts, fields, path, root, train, validation, test, **kwargs)
+    train_dataset = _setup_datasets(*((URLS['Multi30k'][0],) + args), **kwargs)
+    valid_dataset = _setup_datasets(*((URLS['Multi30k'][1],) + args), **kwargs)
+    test_dataset = _setup_datasets(*((URLS['Multi30k'][2],) + args), **kwargs)
+    return (train_dataset, valid_dataset, test_dataset)
