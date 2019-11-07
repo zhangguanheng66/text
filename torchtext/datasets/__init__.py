@@ -1,8 +1,7 @@
 from .language_modeling import LanguageModelingDataset, WikiText2, WikiText103, PennTreebank  # NOQA
 from .nli import SNLI, MultiNLI, XNLI
 from .sst import SST
-#from .translation import TranslationDataset, Multi30k, WMT14  # NOQA
-from .translation import TranslationDataset, Multi30k
+from .translation import TranslationDataset, Multi30k, WMT14  # NOQA
 from .sequence_tagging import SequenceTaggingDataset, UDPOS, CoNLL2000Chunking  # NOQA
 from .trec import TREC
 from .imdb import IMDB
