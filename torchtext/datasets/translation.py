@@ -31,7 +31,6 @@ def _clean_xml_file(f_xml):
 def _clean_tags_file(f_orig):
     xml_tags = ['<url', '<keywords', '<talkid', '<description',
                 '<reviewer', '<translator', '<title', '<speaker']
-    print(f_orig)
     f_txt = f_orig.replace('.tags', '')
     with codecs.open(f_txt, mode='w', encoding='utf-8') as fd_txt, \
             io.open(f_orig, mode='r', encoding='utf-8') as fd_orig:
