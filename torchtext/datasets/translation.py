@@ -36,7 +36,10 @@ def _clean_tags_file(f_orig):
             io.open(f_orig, mode='r', encoding='utf-8') as fd_orig:
         for l in fd_orig:
             if not any(tag in l for tag in xml_tags):
-                fd_txt.write(l.strip() + '\n')
+#[TODO] Fix utf-8 next line mark
+#                fd_txt.write(l.strip() + '\n')
+#                fd_txt.write(l.strip() + u"\u0085")
+                fd_txt.write(l.lstrip())
 
 
 def _setup_datasets(url, filenames=('de', 'en'),
