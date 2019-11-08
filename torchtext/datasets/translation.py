@@ -5,6 +5,10 @@ from torchtext.vocab import build_vocab_from_iterator
 from torchtext.data.utils import get_tokenizer
 from torchtext.vocab import Vocab
 from torchtext.data.functional import read_text_iterator, create_data_from_iterator
+import os
+import io
+import codecs
+import xml.etree.ElementTree as ET
 
 URLS = {
     'Multi30k': ['http://www.quest.dcs.shef.ac.uk/wmt16_files_mmt/training.tar.gz',
@@ -13,6 +17,27 @@ URLS = {
                  'mmt_task1_test2016.tar.gz'],
     'WMT14': 'https://drive.google.com/uc?export=download&id=0B_bZck-ksdkpM25jRUN2X2UxMm8'
 }
+
+
+def _clean_xml_file(f_xml):
+    f_txt = os.path.splitext(f_xml)[0]
+    with codecs.open(f_txt, mode='w', encoding='utf-8') as fd_txt:
+        root = ET.parse(f_xml).getroot()[0]
+        for doc in root.findall('doc'):
+            for e in doc.findall('seg'):
+                fd_txt.write(e.text.strip() + '\n')
+
+
+def _clean_tags_file(f_orig):
+    xml_tags = ['<url', '<keywords', '<talkid', '<description',
+                '<reviewer', '<translator', '<title', '<speaker']
+    print(f_orig)
+    f_txt = f_orig.replace('.tags', '')
+    with codecs.open(f_txt, mode='w', encoding='utf-8') as fd_txt, \
+            io.open(f_orig, mode='r', encoding='utf-8') as fd_orig:
+        for l in fd_orig:
+            if not any(tag in l for tag in xml_tags):
+                fd_txt.write(l.strip() + '\n')
 
 
 def _setup_datasets(url, filenames=('de', 'en'),
@@ -26,9 +51,21 @@ def _setup_datasets(url, filenames=('de', 'en'),
     dataset_tar = download_from_url(url, root=root)
     extracted_files = extract_archive(dataset_tar)
 
+    # Clean the xml and tag file in the archives
+    file_archives = []
+    for fname in extracted_files:
+        if 'xml' in fname:
+            _clean_xml_file(fname)
+            file_archives.append(os.path.splitext(fname)[0])
+        elif "tags" in fname:
+            _clean_tags_file(fname)
+            file_archives.append(fname.replace('.tags', ''))
+        else:
+            file_archives.append(fname)
+
     src_path = None
     tgt_path = None
-    for fname in extracted_files:
+    for fname in file_archives:
         src_path = fname if src_filename in fname else src_path
         tgt_path = fname if tgt_filename in fname else tgt_path
     if not (src_path and tgt_path):
@@ -145,10 +182,69 @@ def Multi30k(tokenizer=(get_tokenizer("spacy", language='de'),
 
     train_dataset = _setup_datasets(URLS['Multi30k'][0], ('train.de', 'train.en'),
                                     tokenizer, root, vocab, removed_tokens)
-    valid_dataset = _setup_datasets(URLS['Multi30k'][1], ('val.de', 'val.en'),
-                                    tokenizer, root, vocab, removed_tokens)
+    src_vocab, tgt_vocab = train_dataset.get_vocab()
+    valid_dataset = _setup_datasets(URLS['Multi30k'][1], ('val.de', 'val.en'), tokenizer,
+                                    root, (src_vocab, tgt_vocab), removed_tokens)
     test_dataset = _setup_datasets(URLS['Multi30k'][2], ('test2016.de', 'test2016.en'),
-                                   tokenizer, root, vocab, removed_tokens)
+                                   tokenizer, root,
+                                   (src_vocab, tgt_vocab), removed_tokens)
+    return (train_dataset, valid_dataset, test_dataset)
+
+
+def IWSLT(languages='de-en',
+          train_filenames=('train.de-en.de',
+                           'train.de-en.en'),
+          valid_filenames=('IWSLT16.TED.tst2013.de-en.de',
+                           'IWSLT16.TED.tst2013.de-en.en'),
+          test_filenames=('IWSLT16.TED.tst2014.de-en.de',
+                          'IWSLT16.TED.tst2014.de-en.en'),
+          tokenizer=(get_tokenizer("spacy", language='de'),
+                     get_tokenizer("spacy", language='en')),
+          root='.data', vocab=(None, None),
+          removed_tokens=['<unk>']):
+
+    """ Define translation datasets: IWSLT
+        Separately returns train/valid/test datasets
+        The available datasets include:
+
+    Arguments:
+        languages: the source and target languages for the datasets.
+            Default: 'de-en' for source-target languages.
+        train_filenames: the source and target filenames for training.
+            Default: ('train.de-en.de', 'train.de-en.en')
+        valid_filenames: the source and target filenames for valid.
+            Default: ('IWSLT16.TED.tst2013.de-en.de', 'IWSLT16.TED.tst2013.de-en.en')
+        test_filenames: the source and target filenames for test.
+            Default: ('IWSLT16.TED.tst2014.de-en.de', 'IWSLT16.TED.tst2014.de-en.en')
+        tokenizer: the tokenizer used to preprocess source and target raw text data.
+            Default: (torchtext.data.utils.get_tokenizer("spacy", language='de'),
+                      torchtext.data.utils.get_tokenizer("spacy", language='en'))
+        root: Directory where the datasets are saved. Default: ".data"
+        vocab: Source and target Vocabulary objects used for dataset. If None, it
+            will generate a new vocabulary based on the train data set.
+        removed_tokens: removed tokens from output dataset (Default: '<unk>')
+
+    Examples:
+        >>> from torchtext.datasets import IWSLT
+        >>> from torchtext.data.utils import get_tokenizer
+        >>> src_tokenizer = get_tokenizer("spacy", language='de')
+        >>> tgt_tokenizer = get_tokenizer("basic_english")
+        >>> train_dataset, valid_dataset, test_dataset = IWSLT(tokenizer=(src_tokenizer,
+                                                                          tgt_tokenizer))
+        >>> src_vocab, tgt_vocab = train_dataset.get_vocab()
+        >>> src_data, tgt_data = train_dataset[10]
+    """
+    src_language, tgt_language = languages.split('-')
+    base_url = 'https://wit3.fbk.eu/archive/2016-01//texts/{}/{}/{}.tgz'
+    url = base_url.format(src_language, tgt_language, languages)
+
+    train_dataset = _setup_datasets(url, train_filenames,
+                                    tokenizer, root, vocab, removed_tokens)
+    src_vocab, tgt_vocab = train_dataset.get_vocab()
+    valid_dataset = _setup_datasets(url, valid_filenames, tokenizer, root,
+                                    (src_vocab, tgt_vocab), removed_tokens)
+    test_dataset = _setup_datasets(url, test_filenames, tokenizer, root,
+                                   (src_vocab, tgt_vocab), removed_tokens)
     return (train_dataset, valid_dataset, test_dataset)
 
 
@@ -244,8 +340,9 @@ def WMT14(train_filenames=('train.tok.clean.bpe.32000.de',
     """
     train_dataset = _setup_datasets(URLS['WMT14'], train_filenames,
                                     tokenizer, root, vocab, removed_tokens)
-    valid_dataset = _setup_datasets(URLS['WMT14'], valid_filenames,
-                                    tokenizer, root, vocab, removed_tokens)
-    test_dataset = _setup_datasets(URLS['WMT14'], test_filenames,
-                                   tokenizer, root, vocab, removed_tokens)
+    src_vocab, tgt_vocab = train_dataset.get_vocab()
+    valid_dataset = _setup_datasets(URLS['WMT14'], valid_filenames, tokenizer,
+                                    root, (src_vocab, tgt_vocab), removed_tokens)
+    test_dataset = _setup_datasets(URLS['WMT14'], test_filenames, tokenizer,
+                                   root, (src_vocab, tgt_vocab), removed_tokens)
     return (train_dataset, valid_dataset, test_dataset)
