@@ -22,7 +22,6 @@ def _setup_datasets(url, filenames=('de', 'en'),
     src_vocab, tgt_vocab = vocab
     src_filename, tgt_filename = filenames
     src_tokenizer, tgt_tokenizer = tokenizer
-    print("url: ", url)
     dataset_tar = download_from_url(url, root=root)
     extracted_files = extract_archive(dataset_tar)
 
@@ -33,7 +32,6 @@ def _setup_datasets(url, filenames=('de', 'en'),
         tgt_path = fname if tgt_filename in fname else tgt_path
     if not (src_path and tgt_path):
         raise TypeError("Source files are not found for the input languages")
-    print("src_path, tgt_path: ", src_path, tgt_path)
     if src_vocab is None:
         logging.info('Building src Vocab based on train data')
         src_vocab = build_vocab_from_iterator(read_text_iterator(src_path, src_tokenizer))
