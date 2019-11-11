@@ -39,7 +39,8 @@ def _clean_tags_file(f_orig):
 #[TODO] Fix utf-8 next line mark
 #                fd_txt.write(l.strip() + '\n')
 #                fd_txt.write(l.strip() + u"\u0085")
-                fd_txt.write(l.lstrip())
+#                fd_txt.write(l.lstrip())
+                fd_txt.write(l.strip() + '\n')
 
 
 def _setup_datasets(url, filenames=('de', 'en'),
