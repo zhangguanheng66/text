@@ -276,6 +276,10 @@ class SubwordVocab(Vocab):
         if vectors is not None:
             self.load_vectors(vectors, unk_init=unk_init)
 
+    def __getitem__(self, token):
+        if token in self.stoi.keys():
+            return [self.stoi[token]]
+        return [self.stoi[i] for i in self.segment(token)]
 
 def _infer_shape(f):
     num_lines, vector_dim = 0, None
