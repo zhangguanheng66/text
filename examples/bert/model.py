@@ -53,6 +53,67 @@ class PositionalEncoding(nn.Module):
         return self.dropout(x)
 
 
+class MultiheadAttentionInProjection(nn.Module):
+    def __init__(self, embed_dim, num_heads, kdim=None, vdim=None):
+        super(MultiheadAttentionInProjection, self).__init__()
+        self.embed_dim = embed_dim
+        self.kdim = kdim if kdim is not None else embed_dim
+        self.vdim = vdim if vdim is not None else embed_dim
+
+        self.num_heads = num_heads
+        self.fc_q = nn.Linear(embed_dim, embed_dim)  # query
+        self.fc_k = nn.Linear(embed_dim, self.kdim)  # key
+        self.fc_v = nn.Linear(embed_dim, self.vdim)  # value
+
+    def forward(self, query, key, value):
+        tgt_len, bsz, embed_dim = query.size(0), query.size(1), query.size(2)
+
+        head_dim = embed_dim // self.num_heads
+        assert head_dim * self.num_heads == embed_dim, "embed_dim must be divisible by num_heads"
+
+        q = self.fc_q(query)
+        q = q.contiguous().view(tgt_len, bsz * self.num_heads, head_dim).transpose(0, 1)
+        k = self.fc_k(key)
+        k = k.contiguous().view(-1, bsz * self.num_heads, head_dim).transpose(0, 1)
+        v = self.fc_v(value)
+        v = v.contiguous().view(-1, bsz * self.num_heads, head_dim).transpose(0, 1)
+        return q, k, v
+
+
+class ScaledDotProduct(nn.Module):
+    def __init__(self, dropout=0.0):
+        super(ScaledDotProduct, self).__init__()
+        self.dropout = dropout
+
+    def forward(self, query, key, value, attn_mask=None):
+#        tgt_len = query.size(0)
+#        src_len = key.size(0)
+#        batch_heads = query.size(1)
+
+        attn_output_weights = torch.bmm(query, key.transpose(1, 2))
+        if attn_mask is not None:
+            attn_output_weights += attn_mask
+#        attn_output_weights = attn_output_weights.view(batch_heads, tgt_len, src_len)
+        attn_output_weights = nn.functional.softmax(attn_output_weights, dim=-1)
+        attn_output_weights = nn.functional.dropout(attn_output_weights, p=self.dropout, training=self.training)
+        attn_output = torch.bmm(attn_output_weights, value)
+        return attn_output
+
+
+class MultiheadAttentionOutProjection(nn.Module):
+    def __init__(self, embed_dim, num_heads):
+        super(MultiheadAttentionOutProjection, self).__init__()
+        self.embed_dim = embed_dim
+        self.num_heads = num_heads
+        self.linear = nn.Linear(embed_dim, embed_dim)
+
+    def forward(self, attn_output):
+        batch_heads, tgt_len = attn_output.size(0), attn_output.size(1)
+        bsz = batch_heads // self.num_heads
+        assert bsz * self.num_heads == batch_heads, "batch size times the number of heads not equal to attn_output[0]"
+        attn_output = attn_output.transpose(0, 1).contiguous().view(tgt_len, bsz, self.embed_dim)
+        return self.linear(attn_output)
+
 class MultiheadAttention(nn.Module):
     def __init__(self, embed_dim, num_heads, dropout=0., bias=True, add_bias_kv=False, add_zero_attn=False, kdim=None, vdim=None):
         super(MultiheadAttention, self).__init__()
@@ -122,7 +183,7 @@ class MultiheadAttention(nn.Module):
             return F.multi_head_attention_forward(
                 query, key, value, self.embed_dim, self.num_heads,
                 self.in_proj_weight, self.in_proj_bias,
-                self.bias_k, self.bias_v, self.add_zero_attn,
+                elf.bias_k, self.bias_v, self.add_zero_attn,
                 self.dropout, self.out_proj.weight, self.out_proj.bias,
                 training=self.training,
                 key_padding_mask=key_padding_mask, need_weights=need_weights,
@@ -144,7 +205,10 @@ class TransformerEncoderLayer(nn.Module):
 
     def __init__(self, d_model, nhead, dim_feedforward=2048, dropout=0.1, activation="relu"):
         super(TransformerEncoderLayer, self).__init__()
-        self.self_attn = MultiheadAttention(d_model, nhead, dropout=dropout)
+        self.attn_in_proj = MultiheadAttentionInProjection(d_model, nhead)
+        self.scaled_dot_product = ScaledDotProduct(dropout=dropout)
+        self.attn_out_proj = MultiheadAttentionOutProjection(d_model, nhead)
+#        self.self_attn = MultiheadAttention(d_model, nhead, dropout=dropout)
         # Implementation of Feedforward model
         self.linear1 = Linear(d_model, dim_feedforward)
         self.dropout = Dropout(dropout)
@@ -168,8 +232,11 @@ class TransformerEncoderLayer(nn.Module):
         super(TransformerEncoderLayer, self).__setstate__(state)
 
     def forward(self, src, src_mask=None, src_key_padding_mask=None):
-        src2 = self.self_attn(src, src, src, attn_mask=src_mask,
-                              key_padding_mask=src_key_padding_mask)[0]
+        query, key, value = self.attn_in_proj(src, src, src)
+        attn_out = self.scaled_dot_product(query, key, value, attn_mask=src_mask)
+        src2 = self.attn_out_proj(attn_out)
+#        src2 = self.self_attn(src, src, src, attn_mask=src_mask,
+#                              key_padding_mask=src_key_padding_mask)[0]
         src = src + self.dropout1(src2)
         src = self.norm1(src)
         src2 = self.linear2(self.dropout(self.activation(self.linear1(src))))
