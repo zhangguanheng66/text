@@ -10,6 +10,10 @@ import torch.onnx
 import model
 
 def batchify(txt_data, bsz):
+
+    # Cut the data to bptt and bsz
+    _num = len(txt_data) // (bsz * args.bptt)
+    txt_data = txt_data[:(_num * bsz * args.bptt)]
     # Divide the dataset into bsz parts.
     nbatch = txt_data.size(0) // bsz
     # Trim off any extra elements that wouldn't cleanly fit (remainders).
@@ -36,18 +40,31 @@ def batchify(txt_data, bsz):
 def get_batch(source, i):
     seq_len = min(args.bptt, len(source) - 1 - i)
     data = source[i:i+seq_len]
-    target = source[i+1:i+1+seq_len].view(-1)
-    return data, target
-
+#    target = source[i+1:i+1+seq_len].view(-1)
+#    return data, target
+    return data
 
 def evaluate(data_source):
     # Turn on evaluation mode which disables dropout.
     model.eval()
     total_loss = 0.
+    mask_id = train_dataset.vocab.stoi['<MASK>']
     with torch.no_grad():
         for i in range(0, data_source.size(0) - 1, args.bptt):
-            data, targets = get_batch(data_source, i)
+            data = get_batch(data_source, i)
+
+            # Generate masks with args.mask_frac
+            data_len = data.size(0)
+            ones_num = int(data_len * args.mask_frac)
+            zeros_num = data_len - ones_num
+            lm_mask = torch.cat([torch.zeros(zeros_num), torch.ones(ones_num)])
+            lm_mask = lm_mask[torch.randperm(data_len)].to(device)
+
+            targets = torch.stack([data[i] for i in range(lm_mask.size(0)) if lm_mask[i]]).view(-1)
+            data = data.masked_fill(lm_mask.bool().unsqueeze(1), mask_id)
+
             output = model(data)
+            output = torch.stack([output[i] for i in range(lm_mask.size(0)) if lm_mask[i]])
             output_flat = output.view(-1, ntokens)
             total_loss += len(data) * criterion(output_flat, targets).item()
     return total_loss / (len(data_source) - 1)
@@ -58,12 +75,28 @@ def train():
     model.train()
     total_loss = 0.
     start_time = time.time()
+    mask_id = train_dataset.vocab.stoi['<MASK>']
     for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):
-        data, targets = get_batch(train_data, i)
+
+        data = get_batch(train_data, i)
+
+        # Generate masks with args.mask_frac
+        data_len = data.size(0)
+        ones_num = int(data_len * args.mask_frac)
+        zeros_num = data_len - ones_num
+        lm_mask = torch.cat([torch.zeros(zeros_num), torch.ones(ones_num)])
+        lm_mask = lm_mask[torch.randperm(data_len)].to(device)
+
+        targets = torch.stack([data[i] for i in range(lm_mask.size(0)) if lm_mask[i]]).view(-1)
+        data = data.masked_fill(lm_mask.bool().unsqueeze(1), mask_id)
+
         # Starting each batch, we detach the hidden state from how it was previously produced.
         # If we didn't, the model would try backpropagating all the way to start of the dataset.
         optimizer.zero_grad()
         output = model(data)
+        output = torch.stack([output[i] for i in range(lm_mask.size(0)) if lm_mask[i]])
+#        print('targets.size() ', targets.size())
+#        print('output.size() ', output.size())
         loss = criterion(output.view(-1, ntokens), targets)
         loss.backward()
 
@@ -79,7 +112,7 @@ def train():
             elapsed = time.time() - start_time
             print('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.2f} | ms/batch {:5.2f} | '
                     'loss {:5.2f} | ppl {:8.2f}'.format(
-                epoch, batch, len(train_data) // args.bptt, lr,
+                epoch, batch, len(train_data) // args.bptt, scheduler.get_last_lr()[0],
                 elapsed * 1000 / args.log_interval, cur_loss, math.exp(cur_loss)))
             total_loss = 0
             start_time = time.time()
@@ -136,19 +169,19 @@ if __name__ == "__main__":
     #                    help='the number of heads in the encoder/decoder of the transformer model')
 
     # For test
-    parser.add_argument('--emsize', type=int, default=20,
+    parser.add_argument('--emsize', type=int, default=32,
                         help='size of word embeddings')
-    parser.add_argument('--nhid', type=int, default=20,
+    parser.add_argument('--nhid', type=int, default=64,
                         help='number of hidden units per layer')
-    parser.add_argument('--nlayers', type=int, default=2,
+    parser.add_argument('--nlayers', type=int, default=4,
                         help='number of layers')
-    parser.add_argument('--lr', type=float, default=5,
+    parser.add_argument('--lr', type=float, default=20,
                         help='initial learning rate')
     parser.add_argument('--clip', type=float, default=0.25,
                         help='gradient clipping')
     parser.add_argument('--epochs', type=int, default=2,
                         help='upper epoch limit')
-    parser.add_argument('--batch_size', type=int, default=20, metavar='N',
+    parser.add_argument('--batch_size', type=int, default=16, metavar='N',
                         help='batch size')
     parser.add_argument('--bptt', type=int, default=35,
                         help='sequence length')
@@ -166,10 +199,14 @@ if __name__ == "__main__":
                         help='path to save the final model')
     parser.add_argument('--onnx-export', type=str, default='',
                         help='path to export the final model in onnx format')
+    parser.add_argument('--save-vocab', type=str, default='vocab.pt',
+                        help='path to save the vocab')
 
-    parser.add_argument('--nhead', type=int, default=2,
+    parser.add_argument('--nhead', type=int, default=8,
                         help='the number of heads in the encoder/decoder of the transformer model')
 
+    parser.add_argument('--mask_frac', type=float, default=0.15,
+                        help='the fraction of masked tokens')
     args = parser.parse_args()
 
     # Set the random seed manually for reproducibility.
@@ -193,7 +230,18 @@ if __name__ == "__main__":
 # batch processing.
 
     import torchtext
-    train_dataset, test_dataset, valid_dataset = torchtext.experimental.datasets.WikiText2()
+#    from torchtext.experimental.datasets import WikiText103 as WikiData
+    from torchtext.experimental.datasets import WikiText2 as WikiData
+    try:
+        vocab = torch.load(args.save_vocab)
+    except:
+        train_dataset, test_dataset, valid_dataset = WikiData()
+        old_vocab = train_dataset.vocab
+        vocab = torchtext.vocab.Vocab(counter=old_vocab.freqs,
+                                      specials=['<unk>', '<pad>', '<MASK>'])
+        with open(args.save_vocab, 'wb') as f:
+            torch.save(vocab, f)
+    train_dataset, test_dataset, valid_dataset = WikiData(vocab=vocab)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     eval_batch_size = 10
     train_data = batchify(train_dataset.data, args.batch_size)
@@ -230,9 +278,7 @@ if __name__ == "__main__":
                 torch.save(model, f)
             best_val_loss = val_loss
         else:
-            # Anneal the learning rate if no improvement has been seen in the validation dataset.
             scheduler.step()
-            #lr /= 4.0
 
     # Load the best saved model.
     with open(args.save, 'rb') as f:
@@ -251,3 +297,5 @@ if __name__ == "__main__":
     if len(args.onnx_export) > 0:
         # Export the model in ONNX format.
         export_onnx(args.onnx_export, batch_size=1, seq_len=args.bptt)
+
+# python main.py --seed 68868 --epochs 12 --emsize 256 --nhid 1024  --nlayers 16 --nhead 16
