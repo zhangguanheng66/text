@@ -1,18 +1,12 @@
 import torch
+import json
 import logging
-import os
-import io
-from torchtext.utils import download_from_url, extract_archive
+from torchtext.utils import download_from_url
 from torchtext.vocab import build_vocab_from_iterator
 from torchtext.data.utils import get_tokenizer
 from torchtext.vocab import Vocab
-from torchtext.data.functional import numericalize_tokens_from_iterator
 
 URLS = {
-    'WikiText2':
-        'https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-2-v1.zip',
-    'WikiText103':
-        'https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-103-v1.zip',
     'SQuAD1':
         ['https://rajpurkar.github.io/SQuAD-explorer/dataset/train-v1.1.json',
          'https://rajpurkar.github.io/SQuAD-explorer/dataset/dev-v1.1.json']
@@ -20,28 +14,12 @@ URLS = {
 
 
 class QuestionAnswerDataset(torch.utils.data.Dataset):
-    """Defines a dataset for language modeling.
-       Currently, we only support the following datasets:
-             - WikiText2
-             - WikiText103
-             - PennTreebank
+    """Defines a dataset for question answer.
+       Currently, we only support the followVing datasets:
+             - SQuAD1.1
     """
 
     def __init__(self, data, vocab):
-        """Initiate language modeling dataset.
-        Arguments:
-            data: a tensor of tokens. tokens are ids after
-                numericalizing the string tokens.
-                torch.tensor([token_id_1, token_id_2, token_id_3, token_id1]).long()
-            vocab: Vocabulary object used for dataset.
-        Examples:
-            >>> from torchtext.vocab import build_vocab_from_iterator
-            >>> data = torch.tensor([token_id_1, token_id_2,
-                                     token_id_3, token_id_1]).long()
-            >>> vocab = build_vocab_from_iterator([['language', 'modeling']])
-            >>> dataset = LanguageModelingDataset(data, vocab)
-        """
-
         super(QuestionAnswerDataset, self).__init__()
         self.data = data
         self.vocab = vocab
@@ -58,3 +36,85 @@ class QuestionAnswerDataset(torch.utils.data.Dataset):
 
     def get_vocab(self):
         return self.vocab
+
+
+def create_data_from_iterator(vocab, processed_data, tokenizer):
+    for items in processed_data:
+        ans_start_idx = items['answer_start']
+        ans_start_token_id = len(tokenizer(items['context'][:ans_start_idx]))
+        ans_end_token_id = ans_start_token_id + len(tokenizer(items['answers'])) - 1
+        yield iter(vocab[token] for token in tokenizer(items['context'])), \
+            iter(vocab[token] for token in tokenizer(items['question'])), \
+            iter(vocab[token] for token in tokenizer(items['answers'])), \
+            ans_start_token_id, ans_end_token_id
+
+
+def squad_iterator(processed_data, tokenizer):
+    for items in processed_data:
+        yield tokenizer(items['context']) \
+            + tokenizer(items['question']) \
+            + tokenizer(items['answers'])
+
+
+def process_raw_json_data(raw_json_data):
+    processed = []
+    for layer1 in raw_json_data:
+        for layer2 in layer1['paragraphs']:
+            for layer3 in layer2['qas']:
+                processed.append({'context': layer2['context'],
+                                  'question': layer3['question'],
+                                  'answers': layer3['answers'][0]['text'],
+                                  'answer_start': layer3['answers'][0]['answer_start']})
+    return processed
+
+
+def _setup_datasets(dataset_name, tokenizer=get_tokenizer("basic_english"),
+                    root='.data', vocab=None, removed_tokens=[],
+                    data_select=('train', 'dev')):
+
+    if isinstance(data_select, str):
+        data_select = [data_select]
+    if not set(data_select).issubset(set(('train', 'dev'))):
+        raise TypeError('data_select is not supported!')
+
+    extracted_files = []
+    select_to_index = {'train': 0, 'dev': 1}
+    extracted_files = [download_from_url(URLS['SQuAD1'][select_to_index[key]],
+                                         root=root) for key in data_select]
+
+    squad_data = {}
+    for item in data_select:
+        with open(extracted_files[select_to_index[item]]) as json_file:
+            raw_data = json.load(json_file)['data']
+            squad_data[item] = process_raw_json_data(raw_data)
+
+    if vocab is None:
+        if 'train' not in squad_data.keys():
+            raise TypeError("Must pass a vocab if train is not selected.")
+        logging.info('Building Vocab based on train data')
+        vocab = build_vocab_from_iterator(squad_iterator(squad_data['train'], tokenizer))
+    else:
+        if not isinstance(vocab, Vocab):
+            raise TypeError("Passed vocabulary is not of type Vocab")
+    logging.info('Vocab has {} entries'.format(len(vocab)))
+
+    data = {}
+    for item in data_select:
+        data_iter = create_data_from_iterator(vocab, squad_data[item], tokenizer)
+        tensor_data = []
+        for context, question, answers, ans_start_id, ans_end_id in data_iter:
+            tensor_data.append({'context':
+                                torch.tensor([token_id for token_id in context]).long(),
+                                'question':
+                                torch.tensor([token_id for token_id in question]).long(),
+                                'answers':
+                                torch.tensor([token_id for token_id in answers]).long(),
+                                'ans_pos':
+                                torch.tensor([ans_start_id, ans_end_id]).long()})
+        data[item] = tensor_data
+
+    return tuple(QuestionAnswerDataset(data[item], vocab) for item in data_select)
+
+
+def SQuAD(*args, **kwargs):
+    return _setup_datasets(*(('SQuAD',) + args), **kwargs)

@@ -143,7 +143,7 @@ class TransformerEncoder(nn.Module):
 
 
 class BertModel(nn.Module):
-    """Container module with an encoder, a recurrent or transformer module, and a decoder."""
+    """Contain a transformer encoder."""
 
     def __init__(self, ntoken, ninp, nhead, nhid, nlayers, dropout=0.5):
         super(BertModel, self).__init__()
@@ -154,20 +154,11 @@ class BertModel(nn.Module):
         self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
         self.embed = nn.Embedding(ntoken, ninp)
         self.ninp = ninp
-        self.lm_proj = nn.Linear(ninp, ntoken)
-
-        self.init_weights()
 
     def _generate_square_subsequent_mask(self, sz):
         mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
         mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
         return mask
-
-    def init_weights(self):
-        initrange = 0.1
-        self.embed.weight.data.uniform_(-initrange, initrange)
-        self.lm_proj.bias.data.zero_()
-        self.lm_proj.weight.data.uniform_(-initrange, initrange)
 
     def forward(self, src, has_mask=True):
         if has_mask:
@@ -181,5 +172,44 @@ class BertModel(nn.Module):
         src = self.embed(src) * math.sqrt(self.ninp)
         src = self.pos_embed(src)
         output = self.transformer_encoder(src, self.src_mask)
-        output = self.lm_proj(output)
         return output
+
+
+class MLMTask(nn.Module):
+    """Contain a transformer encoder plus MLM head."""
+
+    def __init__(self, ntoken, ninp, nhead, nhid, nlayers, dropout=0.5):
+        super(MLMTask, self).__init__()
+        self.bert_model = BertModel(ntoken, ninp, nhead, nhid, nlayers, dropout=0.5)
+        self.mlm_head = nn.Linear(ninp, ntoken)
+        self.init_weights()
+
+    def init_weights(self):
+        initrange = 0.1
+        self.bert_model.embed.weight.data.uniform_(-initrange, initrange)
+        self.mlm_head.bias.data.zero_()
+        self.mlm_head.weight.data.uniform_(-initrange, initrange)
+
+    def forward(self, src, has_mask=True):
+        output = self.bert_model(src, has_mask)
+        output = self.mlm_head(output)
+        return output
+
+
+class QuestionAnswerTask(nn.Module):
+    """Contain a pretrain BERT model and a linear layer."""
+
+    def __init__(self, pretrained_bert):
+        super(QuestionAnswerTask, self).__init__()
+        self.pretrained_bert = pretrained_bert
+        self.qa_span = nn.Linear(pretrained_bert.ninp, 2)
+
+    def forward(self, src, has_mask=True):
+        output = self.pretrained_bert(src, has_mask)
+        # transpose output (S, N, E) to (N, S, E)
+        output = output.transpose(0, 1)
+        pos_output = self.qa_span(output)
+        start_pos, end_pos = pos_output.split(1, dim=-1)
+        start_pos = start_pos.squeeze(-1)
+        end_pos = end_pos.squeeze(-1)
+        return start_pos, end_pos
