@@ -49,7 +49,7 @@ def evaluate(data_source):
             loss = (criterion(start_pos, target_start_pos) + criterion(end_pos, target_end_pos)) / 2
             total_loss += loss.item()
 
-    return total_loss / len(data_source)
+    return total_loss / (len(data_source) // batch_size)
 
 
 ###############################################################################
@@ -90,7 +90,7 @@ def train():
             print('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.2f} | '
                   'ms/batch {:5.2f} | '
                   'loss {:5.2f} | ppl {:8.2f}'.format(epoch, idx,
-                                                      len(train_dataset),
+                                                      len(train_dataset) // batch_size,
                                                       scheduler.get_last_lr()[0],
                                                       elapsed * 1000 / args.log_interval,
                                                       cur_loss, math.exp(cur_loss)))
