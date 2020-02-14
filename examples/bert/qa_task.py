@@ -36,7 +36,8 @@ def evaluate(data_source):
     model.eval()
     total_loss = 0.
     batch_size = args.batch_size
-    dataloader = DataLoader(data_source, batch_size=batch_size, collate_fn=pad_squad_data)
+    dataloader = DataLoader(data_source, batch_size=batch_size, shuffle=True,
+                            collate_fn=pad_squad_data)
 
     with torch.no_grad():
         for idx, (seq_input, ans_pos) in enumerate(dataloader):
@@ -62,7 +63,8 @@ def train():
     total_loss = 0.
     start_time = time.time()
     batch_size = args.batch_size
-    dataloader = DataLoader(train_dataset, batch_size=batch_size, collate_fn=pad_squad_data)
+    dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
+                            collate_fn=pad_squad_data)
 
     for idx, (seq_input, ans_pos) in enumerate(dataloader):
         # Starting each batch, we detach the hidden state from how it was previously produced.
