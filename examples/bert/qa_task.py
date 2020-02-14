@@ -28,18 +28,8 @@ def pad_squad_data(batch):
 
 
 ###############################################################################
-# Training code
+# Evaluating code
 ###############################################################################
-
-# get_batch subdivides the source data into chunks of length args.bptt.
-# If source is equal to the example output of the batchify function, with
-# a bptt-limit of 2, we'd get the following two Variables for i = 0:
-# ┌ a g m s ┐ ┌ b h n t ┐
-# └ b h n t ┘ └ c i o u ┘
-# Note that despite the name of the function, the subdivison of data is not
-# done along the batch dimension (i.e. dimension 1), since that was handled
-# by the batchify function. The chunks are along dimension 0, corresponding
-# to the seq_len dimension in the LSTM.
 
 def evaluate(data_source):
     # Turn on evaluation mode which disables dropout.
@@ -61,6 +51,10 @@ def evaluate(data_source):
 
     return total_loss / (len(data_source) - 1)
 
+
+###############################################################################
+# Training code
+###############################################################################
 
 def train():
     # Turn on training mode which enables dropout.
@@ -96,7 +90,7 @@ def train():
             print('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.2f} | '
                   'ms/batch {:5.2f} | '
                   'loss {:5.2f} | ppl {:8.2f}'.format(epoch, idx,
-                                                      len(train_dataset) // args.bptt,
+                                                      len(train_dataset),
                                                       scheduler.get_last_lr()[0],
                                                       elapsed * 1000 / args.log_interval,
                                                       cur_loss, math.exp(cur_loss)))
@@ -124,8 +118,6 @@ if __name__ == "__main__":
     #                    help='upper epoch limit')
     #parser.add_argument('--batch_size', type=int, default=20, metavar='N',
     #                    help='batch size')
-    #parser.add_argument('--bptt', type=int, default=35,
-    #                    help='sequence length')
     #parser.add_argument('--dropout', type=float, default=0.2,
     #                    help='dropout applied to layers (0 = no dropout)')
     #parser.add_argument('--tied', action='store_true',
@@ -157,8 +149,6 @@ if __name__ == "__main__":
                         help='upper epoch limit')
     parser.add_argument('--batch_size', type=int, default=8, metavar='N',
                         help='batch size')
-    parser.add_argument('--bptt', type=int, default=35,
-                        help='sequence length')
     parser.add_argument('--dropout', type=float, default=0.2,
                         help='dropout applied to layers (0 = no dropout)')
     parser.add_argument('--tied', action='store_true',
