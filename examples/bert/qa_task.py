@@ -49,7 +49,7 @@ def evaluate(data_source):
             loss = (criterion(start_pos, target_start_pos) + criterion(end_pos, target_end_pos)) / 2
             total_loss += loss.item()
 
-    return total_loss / (len(data_source) - 1)
+    return total_loss / len(data_source)
 
 
 ###############################################################################
