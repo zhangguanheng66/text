@@ -193,8 +193,9 @@ if __name__ == "__main__":
         val_loss, val_exact, val_f1 = evaluate(dev_dataset)
         print('-' * 89)
         print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
-               'valid ppl {:8.2f}'.format(epoch, (time.time() - epoch_start_time),
-                                          val_loss, math.exp(val_loss)))
+              'exact {:8.3f}% | '
+              'f1 {:8.3f}%'.format(epoch, (time.time() - epoch_start_time),
+                                   val_loss, val_exact, val_f1))
         print('-' * 89)
         # Save the model if the validation loss is the best we've seen so far.
         if not best_val_loss or val_loss < best_val_loss:
