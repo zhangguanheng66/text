@@ -3,7 +3,15 @@ import re
 import string
 
 
-def is_qa_exact(a_gold, a_pred):
+def compute_qa_exact(ans_pred_tokens_samples):
+
+    '''
+        Input: ans_pred_tokens_samples: [(ans1_tokens, pred1_tokens),
+                                         (ans2_tokens, pred2_tokens),
+                                         ...
+                                         (ansn_tokens, predn_tokens)]
+        Output: exact score of the samples
+    '''
 
     def normalize_txt(text):
         # lower case
@@ -20,10 +28,15 @@ def is_qa_exact(a_gold, a_pred):
         # white space fix
         return " ".join(text.split())
 
-    return int(normalize_txt(a_gold) == normalize_txt(a_pred))
+    exact_scores = []
+    for (ans_tokens, pred_tokens) in ans_pred_tokens_samples:
+        ans_str = " ".join(ans_tokens)
+        pred_str = " ".join(pred_tokens)
+        exact_scores.append(int(normalize_txt(ans_str) == normalize_txt(pred_str)))
+    return 100.0 * sum(exact_scores) / len(exact_scores)
 
 
-def compute_f1(ans_pred_tokens_samples):
+def compute_qa_f1(ans_pred_tokens_samples):
 
     '''
         Input: ans_pred_tokens_samples: [(ans1_tokens, pred1_tokens),
@@ -48,3 +61,4 @@ def compute_f1(ans_pred_tokens_samples):
     f1_scores = []
     for (ans_tokens, pred_tokens) in ans_pred_tokens_samples:
         f1_scores.append(sample_f1(ans_tokens, pred_tokens))
+    return 100.0 * sum(f1_scores) / len(f1_scores)
