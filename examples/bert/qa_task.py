@@ -50,13 +50,15 @@ def evaluate(data_source):
             target_start_pos = target_start_pos.squeeze(-1)
             target_end_pos = target_end_pos.squeeze(-1)
 
-            loss = (criterion(start_pos, target_start_pos) + criterion(end_pos, target_end_pos)) / 2
+            loss = (criterion(start_pos, target_start_pos)
+                    + criterion(end_pos, target_end_pos)) / 2
             total_loss += loss.item()
 
             start_pos = nn.functional.softmax(start_pos, dim=1).argmax(1)
             end_pos = nn.functional.softmax(end_pos, dim=1).argmax(1)
 
             # Go through batch and convert ids to tokens list
+            seq_input = seq_input.transpose(0, 1)  # convert from (S, N) to (N, S)
             for num in range(0, seq_input.size(0)):
                 if int(start_pos[num]) > int(end_pos[num]):
                     continue
@@ -188,7 +190,7 @@ if __name__ == "__main__":
     for epoch in range(1, args.epochs + 1):
         epoch_start_time = time.time()
         train()
-        val_loss = evaluate(dev_dataset)
+        val_loss, val_exact, val_f1 = evaluate(dev_dataset)
         print('-' * 89)
         print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
                'valid ppl {:8.2f}'.format(epoch, (time.time() - epoch_start_time),
@@ -213,7 +215,7 @@ if __name__ == "__main__":
     ###############################################################################
     test_loss, test_exact, test_f1 = evaluate(dev_dataset)
     print('=' * 89)
-    print('| End of training | test loss {:5.2f} | exact {:8.2f}% | f1 {:8.2f}%'.format(
+    print('| End of training | test loss {:5.2f} | exact {:8.3f}% | f1 {:8.3f}%'.format(
         test_loss, test_exact, test_f1))
     print('=' * 89)
 
