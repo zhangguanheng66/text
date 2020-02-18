@@ -136,7 +136,7 @@ if __name__ == "__main__":
                         help='gradient clipping')
     parser.add_argument('--epochs', type=int, default=2,
                         help='upper epoch limit')
-    parser.add_argument('--batch_size', type=int, default=8, metavar='N',
+    parser.add_argument('--batch_size', type=int, default=6, metavar='N',
                         help='batch size')
     parser.add_argument('--seed', type=int, default=1111,
                         help='random seed')
