@@ -28,7 +28,7 @@ def pad_squad_data(batch):
     tok_type = torch.stack([torch.cat((torch.zeros((item['context'].size(0))),
                                        torch.ones((max_l -
                                                    item['context'].size(0)))))
-                            for item in seq_list]).t().contiguous()
+                            for item in batch]).t().contiguous()
     return padded.to(device), torch.stack(ans_pos_list).to(device), tok_type.to(device)
 
 
