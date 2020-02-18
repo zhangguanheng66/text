@@ -219,8 +219,8 @@ class MLMTask(nn.Module):
         self.mlm_head.bias.data.zero_()
         self.mlm_head.weight.data.uniform_(-initrange, initrange)
 
-    def forward(self, src, has_mask=True):
-        output = self.bert_model(src, has_mask)
+    def forward(self, src, has_mask=True, token_type_input=None):
+        output = self.bert_model(src, has_mask, token_type_input=None)
         output = self.mlm_head(output)
         return output
 
@@ -233,8 +233,8 @@ class QuestionAnswerTask(nn.Module):
         self.pretrained_bert = pretrained_bert
         self.qa_span = nn.Linear(pretrained_bert.ninp, 2)
 
-    def forward(self, src, has_mask=True):
-        output = self.pretrained_bert(src, has_mask)
+    def forward(self, src, has_mask=True, token_type_input=None):
+        output = self.pretrained_bert(src, has_mask, token_type_input=None)
         # transpose output (S, N, E) to (N, S, E)
         output = output.transpose(0, 1)
         pos_output = self.qa_span(output)
