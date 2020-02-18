@@ -35,8 +35,8 @@ class TokenTypeEncoding(nn.Module):
     def forward(self, seq_input, token_type_input=None):
         S, N, E = seq_input.size()
         if token_type_input is None:
-            token_type_input = torch.zeros((S, N, self.ntoken),
-                                           dtype=torch.long)
+            token_type_input = torch.zeros((S, N),
+                                           dtype=torch.long, device=seq_input.device)
         return seq_input + self.token_type_embeddings(token_type_input)
 
 
@@ -169,7 +169,7 @@ class BertEmbedding(nn.Module):
     def forward(self, src, token_type_input=None):
         src = self.embed(src) * math.sqrt(self.ninp)
         src = self.pos_embed(src)
-#        src = self.tok_type_embed(src, token_type_input)
+        src = self.tok_type_embed(src, token_type_input)
         return src
 
 
