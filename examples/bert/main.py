@@ -298,4 +298,4 @@ if __name__ == "__main__":
         # Export the model in ONNX format.
         export_onnx(args.onnx_export, batch_size=1, seq_len=args.bptt)
 
-# python main.py --seed 68868 --epochs 12 --emsize 256 --nhid 1024  --nlayers 16 --nhead 16
+# python main.py --seed 68868 --epochs 12 --emsize 256 --nhid 1024  --nlayers 16 --nhead 16 --save-vocab squad_vocab.pt
