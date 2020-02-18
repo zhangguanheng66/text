@@ -10,6 +10,7 @@ def compute_qa_exact(ans_pred_tokens_samples):
                                          (ans2_tokens, pred2_tokens),
                                          ...
                                          (ansn_tokens, predn_tokens)]
+        ans1_tokens = ['this', 'is', 'an', 'sample', 'example']
         Output: exact score of the samples
     '''
 
@@ -43,6 +44,7 @@ def compute_qa_f1(ans_pred_tokens_samples):
                                          (ans2_tokens, pred2_tokens),
                                          ...
                                          (ansn_tokens, predn_tokens)]
+        ans1_tokens = ['this', 'is', 'an', 'sample', 'example']
         Output: f1 score of the samples
     '''
     def sample_f1(ans_tokens, pred_tokens):
