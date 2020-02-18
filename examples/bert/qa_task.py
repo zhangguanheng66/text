@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 import torchtext
 from data import SQuAD
 from model import QuestionAnswerTask
+from metrics import compute_qa_exact, compute_qa_f1
 
 
 def pad_squad_data(batch):
@@ -38,6 +39,8 @@ def evaluate(data_source):
     batch_size = args.batch_size
     dataloader = DataLoader(data_source, batch_size=batch_size, shuffle=True,
                             collate_fn=pad_squad_data)
+    ans_pred_tokens_samples = []
+    vocab = data_source.vocab
 
     with torch.no_grad():
         for idx, (seq_input, ans_pos) in enumerate(dataloader):
@@ -50,7 +53,24 @@ def evaluate(data_source):
             loss = (criterion(start_pos, target_start_pos) + criterion(end_pos, target_end_pos)) / 2
             total_loss += loss.item()
 
-    return total_loss / (len(data_source) // batch_size)
+            start_pos = nn.functional.softmax(start_pos, dim=1).argmax(1)
+            end_pos = nn.functional.softmax(end_pos, dim=1).argmax(1)
+
+            # Go through batch and convert ids to tokens list
+            for num in range(0, seq_input.size(0)):
+                if int(start_pos[num]) > int(end_pos[num]):
+                    continue
+                ans_tokens = [vocab.itos[int(seq_input[num][i])]
+                              for i in range(target_start_pos[num],
+                                             target_end_pos[num] + 1)]
+                pred_tokens = [vocab.itos[int(seq_input[num][i])]
+                               for i in range(start_pos[num],
+                                              end_pos[num] + 1)]
+                ans_pred_tokens_samples.append((ans_tokens, pred_tokens))
+
+    return total_loss / (len(data_source) // batch_size), \
+        compute_qa_exact(ans_pred_tokens_samples), \
+        compute_qa_f1(ans_pred_tokens_samples)
 
 
 ###############################################################################
@@ -165,14 +185,14 @@ if __name__ == "__main__":
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1.0, gamma=0.25)
     best_val_loss = None
 
-    for epoch in range(1, args.epochs+1):
+    for epoch in range(1, args.epochs + 1):
         epoch_start_time = time.time()
         train()
         val_loss = evaluate(dev_dataset)
         print('-' * 89)
         print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
-                'valid ppl {:8.2f}'.format(epoch, (time.time() - epoch_start_time),
-                                           val_loss, math.exp(val_loss)))
+               'valid ppl {:8.2f}'.format(epoch, (time.time() - epoch_start_time),
+                                          val_loss, math.exp(val_loss)))
         print('-' * 89)
         # Save the model if the validation loss is the best we've seen so far.
         if not best_val_loss or val_loss < best_val_loss:
@@ -191,10 +211,10 @@ if __name__ == "__main__":
     ###############################################################################
     # Run on test data.
     ###############################################################################
-    test_loss = evaluate(dev_dataset)
+    test_loss, test_exact, test_f1 = evaluate(dev_dataset)
     print('=' * 89)
-    print('| End of training | test loss {:5.2f} | test ppl {:8.2f}'.format(
-        test_loss, math.exp(test_loss)))
+    print('| End of training | test loss {:5.2f} | exact {:8.2f}% | f1 {:8.2f}%'.format(
+        test_loss, test_exact, test_f1))
     print('=' * 89)
 
     with open('fine_tuning_qa_model.pt', 'wb') as f:
