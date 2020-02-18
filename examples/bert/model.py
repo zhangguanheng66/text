@@ -36,8 +36,7 @@ class TokenTypeEncoding(nn.Module):
         S, N, E = seq_input.size()
         if token_type_input is None:
             token_type_input = torch.zeros((S, N, self.ntoken),
-                                           dtype=torch.long, device=seq_input.device)
-
+                                           dtype=torch.long)
         return seq_input + self.token_type_embeddings(token_type_input)
 
 
@@ -160,6 +159,7 @@ class TransformerEncoder(nn.Module):
 
 class BertEmbedding(nn.Module):
     def __init__(self, ntoken, ninp, dropout=0.5):
+        super(BertEmbedding, self).__init__()
         self.ninp = ninp
         self.ntoken = ntoken
         self.pos_embed = PositionalEncoding(ninp, dropout)
@@ -169,8 +169,7 @@ class BertEmbedding(nn.Module):
     def forward(self, src, token_type_input=None):
         src = self.embed(src) * math.sqrt(self.ninp)
         src = self.pos_embed(src)
-        src = self.tok_type_embe(src, token_type_input)
-
+#        src = self.tok_type_embed(src, token_type_input)
         return src
 
 
@@ -216,7 +215,7 @@ class MLMTask(nn.Module):
 
     def init_weights(self):
         initrange = 0.1
-        self.bert_model.embed.weight.data.uniform_(-initrange, initrange)
+        self.bert_model.bert_embed.embed.weight.data.uniform_(-initrange, initrange)
         self.mlm_head.bias.data.zero_()
         self.mlm_head.weight.data.uniform_(-initrange, initrange)
 

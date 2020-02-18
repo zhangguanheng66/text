@@ -6,8 +6,8 @@ import os
 import torch
 import torch.nn as nn
 import torch.onnx
+from model import MLMTask
 
-import model
 
 def batchify(txt_data, bsz):
 
@@ -253,7 +253,8 @@ if __name__ == "__main__":
     ###############################################################################
 
     ntokens = len(train_dataset.get_vocab())
-    model = model.BertModel(ntokens, args.emsize, args.nhead, args.nhid, args.nlayers, args.dropout).to(device)
+#    print(ntokens)
+    model = MLMTask(ntokens, args.emsize, args.nhead, args.nhid, args.nlayers, args.dropout).to(device)
 
     criterion = nn.CrossEntropyLoss()
 
