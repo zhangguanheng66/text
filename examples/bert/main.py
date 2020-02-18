@@ -280,7 +280,7 @@ if __name__ == "__main__":
     print('=' * 89)
 
     # Save the bert model layer
-    with open(args.save, 'rb') as f:
+    with open(args.save, 'wb') as f:
         torch.save(model.bert_model, f)
 
 # python main.py --seed 68868 --epochs 12 --emsize 256 --nhid 1024  --nlayers 16 --nhead 16 --save-vocab squad_vocab.pt
