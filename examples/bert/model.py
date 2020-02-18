@@ -25,6 +25,22 @@ class PositionalEncoding(nn.Module):
         return self.dropout(x)
 
 
+class TokenTypeEncoding(nn.Module):
+    def __init__(self, ntoken, ninp):
+        super(TokenTypeEncoding, self).__init__()
+        self.token_type_embeddings = nn.Embedding(ntoken, ninp)
+        self.ntoken = ntoken
+        self.ninp = ninp
+
+    def forward(self, seq_input, token_type_input=None):
+        S, N, E = seq_input.size()
+        if token_type_input is None:
+            token_type_input = torch.zeros((S, N, self.ntoken),
+                                           dtype=torch.long, device=seq_input.device)
+
+        return seq_input + self.token_type_embeddings(token_type_input)
+
+
 class MultiheadAttentionInProjection(nn.Module):
     def __init__(self, embed_dim, num_heads, kdim=None, vdim=None):
         super(MultiheadAttentionInProjection, self).__init__()
@@ -142,6 +158,22 @@ class TransformerEncoder(nn.Module):
         return output
 
 
+class BertEmbedding(nn.Module):
+    def __init__(self, ntoken, ninp, dropout=0.5):
+        self.ninp = ninp
+        self.ntoken = ntoken
+        self.pos_embed = PositionalEncoding(ninp, dropout)
+        self.embed = nn.Embedding(ntoken, ninp)
+        self.tok_type_embed = TokenTypeEncoding(ntoken, ninp)
+
+    def forward(self, src, token_type_input=None):
+        src = self.embed(src) * math.sqrt(self.ninp)
+        src = self.pos_embed(src)
+        src = self.tok_type_embe(src, token_type_input)
+
+        return src
+
+
 class BertModel(nn.Module):
     """Contain a transformer encoder."""
 
@@ -149,10 +181,9 @@ class BertModel(nn.Module):
         super(BertModel, self).__init__()
         self.model_type = 'Transformer'
         self.src_mask = None
-        self.pos_embed = PositionalEncoding(ninp, dropout)
+        self.bert_embed = BertEmbedding(ntoken, ninp)
         encoder_layers = TransformerEncoderLayer(ninp, nhead, nhid, dropout)
         self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
-        self.embed = nn.Embedding(ntoken, ninp)
         self.ninp = ninp
 
     def _generate_square_subsequent_mask(self, sz):
@@ -160,7 +191,7 @@ class BertModel(nn.Module):
         mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
         return mask
 
-    def forward(self, src, has_mask=True):
+    def forward(self, src, has_mask=True, token_type_input=None):
         if has_mask:
             device = src.device
             if self.src_mask is None or self.src_mask.size(0) != len(src):
@@ -169,8 +200,7 @@ class BertModel(nn.Module):
         else:
             self.src_mask = None
 
-        src = self.embed(src) * math.sqrt(self.ninp)
-        src = self.pos_embed(src)
+        src = self.bert_embed(src, token_type_input)
         output = self.transformer_encoder(src, self.src_mask)
         return output
 
