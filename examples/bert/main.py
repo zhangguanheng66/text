@@ -5,7 +5,6 @@ import math
 import os
 import torch
 import torch.nn as nn
-import torch.onnx
 from model import MLMTask
 
 
@@ -111,21 +110,11 @@ def train():
             cur_loss = total_loss / args.log_interval
             elapsed = time.time() - start_time
             print('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.2f} | ms/batch {:5.2f} | '
-                    'loss {:5.2f} | ppl {:8.2f}'.format(
-                epoch, batch, len(train_data) // args.bptt, scheduler.get_last_lr()[0],
-                elapsed * 1000 / args.log_interval, cur_loss, math.exp(cur_loss)))
+                  'loss {:5.2f} | ppl {:8.2f}'.format(
+                  epoch, batch, len(train_data) // args.bptt, scheduler.get_last_lr()[0],
+                  elapsed * 1000 / args.log_interval, cur_loss, math.exp(cur_loss)))
             total_loss = 0
             start_time = time.time()
-
-
-def export_onnx(path, batch_size, seq_len):
-    print('The model is also exported in ONNX format at {}'.
-          format(os.path.realpath(args.onnx_export)))
-    model.eval()
-    dummy_input = torch.LongTensor(seq_len * batch_size).zero_().view(-1, batch_size).to(device)
-    hidden = model.init_hidden(batch_size)
-    torch.onnx.export(model, (dummy_input, hidden), path)
-
 
 
 # At any point you can hit Ctrl + C to break out of training early.
@@ -162,9 +151,6 @@ if __name__ == "__main__":
     #                    help='report interval')
     #parser.add_argument('--save', type=str, default='model.pt',
     #                    help='path to save the final model')
-    #parser.add_argument('--onnx-export', type=str, default='',
-    #                    help='path to export the final model in onnx format')
-    #
     #parser.add_argument('--nhead', type=int, default=2,
     #                    help='the number of heads in the encoder/decoder of the transformer model')
 
@@ -197,8 +183,6 @@ if __name__ == "__main__":
                         help='report interval')
     parser.add_argument('--save', type=str, default='model.pt',
                         help='path to save the final model')
-    parser.add_argument('--onnx-export', type=str, default='',
-                        help='path to export the final model in onnx format')
     parser.add_argument('--save-vocab', type=str, default='vocab.pt',
                         help='path to save the vocab')
 
@@ -295,8 +279,8 @@ if __name__ == "__main__":
         test_loss, math.exp(test_loss)))
     print('=' * 89)
 
-    if len(args.onnx_export) > 0:
-        # Export the model in ONNX format.
-        export_onnx(args.onnx_export, batch_size=1, seq_len=args.bptt)
+    # Save the bert model layer
+    with open(args.save, 'rb') as f:
+        torch.save(model.bert_model, f)
 
 # python main.py --seed 68868 --epochs 12 --emsize 256 --nhid 1024  --nlayers 16 --nhead 16 --save-vocab squad_vocab.pt

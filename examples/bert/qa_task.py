@@ -22,10 +22,14 @@ def pad_squad_data(batch):
         ans_pos_list.append(item['ans_pos'])
 
     max_l = max(seq_len)
-    padded_tensors = torch.stack([torch.cat((txt,
-                                  torch.tensor([pad_id] * (max_l - len(txt))).long()))
-                                  for txt in seq_list]).t().contiguous()
-    return padded_tensors.to(device), torch.stack(ans_pos_list).to(device)
+    padded = torch.stack([torch.cat((txt,
+                          torch.tensor([pad_id] * (max_l - len(txt))).long()))
+                          for txt in seq_list]).t().contiguous()
+    tok_type = torch.stack([torch.cat((torch.zeros((item['context'].size(0))),
+                                       torch.ones((max_l -
+                                                   item['context'].size(0)))))
+                            for item in seq_list]).t().contiguous()
+    return padded.to(device), torch.stack(ans_pos_list).to(device), tok_type.to(device)
 
 
 ###############################################################################
@@ -43,8 +47,8 @@ def evaluate(data_source):
     vocab = data_source.vocab
 
     with torch.no_grad():
-        for idx, (seq_input, ans_pos) in enumerate(dataloader):
-            start_pos, end_pos = model(seq_input)
+        for idx, (seq_input, ans_pos, tok_type) in enumerate(dataloader):
+            start_pos, end_pos = model(seq_input, token_type_input=tok_type)
 
             target_start_pos, target_end_pos = ans_pos.split(1, dim=-1)
             target_start_pos = target_start_pos.squeeze(-1)
@@ -88,11 +92,11 @@ def train():
     dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
                             collate_fn=pad_squad_data)
 
-    for idx, (seq_input, ans_pos) in enumerate(dataloader):
+    for idx, (seq_input, ans_pos, tok_type) in enumerate(dataloader):
         # Starting each batch, we detach the hidden state from how it was previously produced.
         # If we didn't, the model would try backpropagating all the way to start of the dataset.
         optimizer.zero_grad()
-        start_pos, end_pos = model(seq_input)
+        start_pos, end_pos = model(seq_input, token_type_input=tok_type)
 
         target_start_pos, target_end_pos = ans_pos.split(1, dim=-1)
         target_start_pos = target_start_pos.squeeze(-1)
