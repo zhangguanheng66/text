@@ -191,6 +191,8 @@ if __name__ == "__main__":
 
     parser.add_argument('--mask_frac', type=float, default=0.15,
                         help='the fraction of masked tokens')
+    parser.add_argument('--dataset', type=str, default='WikiText2',
+                        help='dataset used for pretrained BERT model')
     args = parser.parse_args()
 
     # Set the random seed manually for reproducibility.
@@ -214,8 +216,17 @@ if __name__ == "__main__":
 # batch processing.
 
     import torchtext
-#    from torchtext.experimental.datasets import WikiText103 as WikiData
-    from torchtext.experimental.datasets import WikiText2 as WikiData
+
+    ###############################################################################
+    # Import dataset
+    ###############################################################################
+    if args.dataset == 'WikiText103':
+        from torchtext.experimental.datasets import WikiText103 as WikiData
+    elif args.dataset == 'WikiText2':
+        from torchtext.experimental.datasets import WikiText2 as WikiData
+    else:
+        print("dataset for pretrained BERT is not supported")
+
     try:
         vocab = torch.load(args.save_vocab)
     except:
@@ -237,18 +248,18 @@ if __name__ == "__main__":
     ###############################################################################
 
     ntokens = len(train_dataset.get_vocab())
-#    print(ntokens)
     model = MLMTask(ntokens, args.emsize, args.nhead, args.nhid, args.nlayers, args.dropout).to(device)
-
     criterion = nn.CrossEntropyLoss()
 
+    ###############################################################################
     # Loop over epochs.
+    ###############################################################################
     lr = args.lr
     optimizer = torch.optim.SGD(model.parameters(), lr=lr)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1.0, gamma=0.25)
     best_val_loss = None
 
-    for epoch in range(1, args.epochs+1):
+    for epoch in range(1, args.epochs + 1):
         epoch_start_time = time.time()
         train()
         val_loss = evaluate(val_data)
@@ -265,22 +276,28 @@ if __name__ == "__main__":
         else:
             scheduler.step()
 
+    ###############################################################################
     # Load the best saved model.
+    ###############################################################################
     with open(args.save, 'rb') as f:
         model = torch.load(f)
         # after load the rnn params are not a continuous chunk of memory
         # this makes them a continuous chunk, and will speed up forward pass
         # Currently, only rnn model supports flatten_parameters function.
 
+    ###############################################################################
     # Run on test data.
+    ###############################################################################
     test_loss = evaluate(test_data)
     print('=' * 89)
     print('| End of training | test loss {:5.2f} | test ppl {:8.2f}'.format(
         test_loss, math.exp(test_loss)))
     print('=' * 89)
 
+    ###############################################################################
     # Save the bert model layer
+    ###############################################################################
     with open(args.save, 'wb') as f:
         torch.save(model.bert_model, f)
 
-# python main.py --seed 68868 --epochs 12 --emsize 256 --nhid 1024  --nlayers 16 --nhead 16 --save-vocab squad_vocab.pt
+# python main.py --seed 68868 --epochs 2 --emsize 256 --nhid 1024  --nlayers 16 --nhead 16 --save-vocab squad_vocab.pt
