@@ -161,7 +161,7 @@ if __name__ == "__main__":
                         help='number of hidden units per layer')
     parser.add_argument('--nlayers', type=int, default=4,
                         help='number of layers')
-    parser.add_argument('--lr', type=float, default=20,
+    parser.add_argument('--lr', type=float, default=5,
                         help='initial learning rate')
     parser.add_argument('--clip', type=float, default=0.25,
                         help='gradient clipping')
@@ -300,4 +300,4 @@ if __name__ == "__main__":
     with open(args.save, 'wb') as f:
         torch.save(model.bert_model, f)
 
-# python main.py --seed 68868 --epochs 2 --emsize 256 --nhid 1024  --nlayers 16 --nhead 16 --save-vocab squad_vocab.pt
+# python main.py --seed 68868 --epochs 3 --emsize 256 --nhid 1024  --nlayers 16 --nhead 16 --save-vocab squad_vocab.pt
