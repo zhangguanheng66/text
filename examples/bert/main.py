@@ -300,4 +300,4 @@ if __name__ == "__main__":
     with open(args.save, 'wb') as f:
         torch.save(model.bert_model, f)
 
-# python main.py --seed 68868 --epochs 3 --emsize 256 --nhid 1024  --nlayers 16 --nhead 16 --save-vocab squad_vocab.pt
+# python main.py --seed 6868 --epochs 3 --emsize 256 --nhid 3072  --nlayers 12 --nhead 12 --save-vocab squad_vocab.pt

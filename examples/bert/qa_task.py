@@ -226,4 +226,4 @@ if __name__ == "__main__":
 
     with open('fine_tuning_qa_model.pt', 'wb') as f:
         torch.save(model, f)
-#python qa_task.py --bert-model squad_vocab_pretrained_bert.pt --epochs 8 --save-vocab squad_vocab.pt
+#python qa_task.py --bert-model squad_vocab_pretrained_bert.pt --epochs 2 --save-vocab squad_vocab.pt
