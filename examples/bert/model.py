@@ -14,7 +14,9 @@ class PositionalEncoding(nn.Module):
 
         pe = torch.zeros(max_len, d_model)
         position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
+        div_term = torch.exp(torch.arange(0,
+                                          d_model,
+                                          2).float() * (-math.log(10000.0) / d_model))
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
         pe = pe.unsqueeze(0).transpose(0, 1)
@@ -56,7 +58,8 @@ class MultiheadAttentionInProjection(nn.Module):
         tgt_len, bsz, embed_dim = query.size(0), query.size(1), query.size(2)
 
         head_dim = embed_dim // self.num_heads
-        assert head_dim * self.num_heads == embed_dim, "embed_dim must be divisible by num_heads"
+        assert head_dim * self.num_heads == embed_dim, \
+            "embed_dim must be divisible by num_heads"
 
         q = self.fc_q(query)
         q = q.contiguous().view(tgt_len, bsz * self.num_heads, head_dim).transpose(0, 1)
@@ -77,7 +80,9 @@ class ScaledDotProduct(nn.Module):
         if attn_mask is not None:
             attn_output_weights += attn_mask
         attn_output_weights = nn.functional.softmax(attn_output_weights, dim=-1)
-        attn_output_weights = nn.functional.dropout(attn_output_weights, p=self.dropout, training=self.training)
+        attn_output_weights = nn.functional.dropout(attn_output_weights,
+                                                    p=self.dropout,
+                                                    training=self.training)
         attn_output = torch.bmm(attn_output_weights, value)
         return attn_output
 
@@ -92,13 +97,17 @@ class MultiheadAttentionOutProjection(nn.Module):
     def forward(self, attn_output):
         batch_heads, tgt_len = attn_output.size(0), attn_output.size(1)
         bsz = batch_heads // self.num_heads
-        assert bsz * self.num_heads == batch_heads, "batch size times the number of heads not equal to attn_output[0]"
-        attn_output = attn_output.transpose(0, 1).contiguous().view(tgt_len, bsz, self.embed_dim)
+        assert bsz * self.num_heads == batch_heads, \
+            "batch size times the number of heads not equal to attn_output[0]"
+        attn_output = attn_output.transpose(0, 1).contiguous().view(tgt_len,
+                                                                    bsz,
+                                                                    self.embed_dim)
         return self.linear(attn_output)
 
 
 class TransformerEncoderLayer(nn.Module):
-    def __init__(self, d_model, nhead, dim_feedforward=2048, dropout=0.1, activation="relu"):
+    def __init__(self, d_model, nhead, dim_feedforward=2048,
+                 dropout=0.1, activation="relu"):
         super(TransformerEncoderLayer, self).__init__()
         self.attn_in_proj = MultiheadAttentionInProjection(d_model, nhead)
         self.scaled_dot_product = ScaledDotProduct(dropout=dropout)
@@ -117,7 +126,7 @@ class TransformerEncoderLayer(nn.Module):
         elif activation == "gelu":
             self.activation = F.gelu
         else:
-            raise RuntimeError("activation should be relu/gelu, not {}".format(activation))
+            raise RuntimeError("only relu/gelu are supported, not {}".format(activation))
 
     def __setstate__(self, state):
         if 'activation' not in state:
@@ -187,7 +196,8 @@ class BertModel(nn.Module):
 
     def _generate_square_subsequent_mask(self, sz):
         mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
-        mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
+        mask = mask.float().masked_fill(mask == 0,
+                                        float('-inf')).masked_fill(mask == 1, float(0.0))
         return mask
 
     def forward(self, src, has_mask=True, token_type_input=None):
@@ -220,7 +230,7 @@ class MLMTask(nn.Module):
         self.mlm_head.weight.data.uniform_(-initrange, initrange)
 
     def forward(self, src, has_mask=True, token_type_input=None):
-        output = self.bert_model(src, has_mask, token_type_input=None)
+        output = self.bert_model(src, has_mask, token_type_input)
         output = self.mlm_head(output)
         return output
 
@@ -234,7 +244,7 @@ class QuestionAnswerTask(nn.Module):
         self.qa_span = nn.Linear(pretrained_bert.ninp, 2)
 
     def forward(self, src, has_mask=True, token_type_input=None):
-        output = self.pretrained_bert(src, has_mask, token_type_input=None)
+        output = self.pretrained_bert(src, has_mask, token_type_input)
         # transpose output (S, N, E) to (N, S, E)
         output = output.transpose(0, 1)
         pos_output = self.qa_span(output)
