@@ -188,29 +188,14 @@ class BertModel(nn.Module):
     def __init__(self, ntoken, ninp, nhead, nhid, nlayers, dropout=0.5):
         super(BertModel, self).__init__()
         self.model_type = 'Transformer'
-        self.src_mask = None
         self.bert_embed = BertEmbedding(ntoken, ninp)
         encoder_layers = TransformerEncoderLayer(ninp, nhead, nhid, dropout)
         self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
         self.ninp = ninp
 
-    def _generate_square_subsequent_mask(self, sz):
-        mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
-        mask = mask.float().masked_fill(mask == 0,
-                                        float('-inf')).masked_fill(mask == 1, float(0.0))
-        return mask
-
-    def forward(self, src, has_mask=True, token_type_input=None):
-        if has_mask:
-            device = src.device
-            if self.src_mask is None or self.src_mask.size(0) != len(src):
-                mask = self._generate_square_subsequent_mask(len(src)).to(device)
-                self.src_mask = mask
-        else:
-            self.src_mask = None
-
+    def forward(self, src, token_type_input=None):
         src = self.bert_embed(src, token_type_input)
-        output = self.transformer_encoder(src, self.src_mask)
+        output = self.transformer_encoder(src)
         return output
 
 
@@ -229,8 +214,8 @@ class MLMTask(nn.Module):
         self.mlm_head.bias.data.zero_()
         self.mlm_head.weight.data.uniform_(-initrange, initrange)
 
-    def forward(self, src, has_mask=True, token_type_input=None):
-        output = self.bert_model(src, has_mask, token_type_input)
+    def forward(self, src, token_type_input=None):
+        output = self.bert_model(src, token_type_input)
         output = self.mlm_head(output)
         return output
 
@@ -243,8 +228,8 @@ class QuestionAnswerTask(nn.Module):
         self.pretrained_bert = pretrained_bert
         self.qa_span = nn.Linear(pretrained_bert.ninp, 2)
 
-    def forward(self, src, has_mask=True, token_type_input=None):
-        output = self.pretrained_bert(src, has_mask, token_type_input)
+    def forward(self, src, token_type_input=None):
+        output = self.pretrained_bert(src, token_type_input)
         # transpose output (S, N, E) to (N, S, E)
         output = output.transpose(0, 1)
         pos_output = self.qa_span(output)
