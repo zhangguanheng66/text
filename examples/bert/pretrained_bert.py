@@ -184,22 +184,29 @@ if __name__ == "__main__":
     # Import dataset
     ###############################################################################
     if args.dataset == 'WikiText103':
-        from torchtext.experimental.datasets import WikiText103 as WikiData
+        from torchtext.experimental.datasets import WikiText103 as WLMDataset
     elif args.dataset == 'WikiText2':
-        from torchtext.experimental.datasets import WikiText2 as WikiData
+        from torchtext.experimental.datasets import WikiText2 as WLMDataset
+    elif args.dataset == 'WMTNewsCrawl':
+        from data import WMTNewsCrawl as WLMDataset
     else:
         print("dataset for pretrained BERT is not supported")
 
     try:
         vocab = torch.load(args.save_vocab)
     except:
-        train_dataset, test_dataset, valid_dataset = WikiData()
+        train_dataset, test_dataset, valid_dataset = WLMDataset()
         old_vocab = train_dataset.vocab
         vocab = torchtext.vocab.Vocab(counter=old_vocab.freqs,
                                       specials=['<unk>', '<pad>', '<MASK>'])
         with open(args.save_vocab, 'wb') as f:
             torch.save(vocab, f)
-    train_dataset, test_dataset, valid_dataset = WikiData(vocab=vocab)
+
+    if args.dataset == 'WikiText103' or args.dataset == 'WikiText2':
+        train_dataset, test_dataset, valid_dataset = WLMDataset(vocab=vocab)
+    elif args.dataset == 'WMTNewsCrawl':
+        test_dataset, valid_dataset = torchtext.experimental.datasets.WikiText2(vocab=vocab, data_select=('test', 'valid'))
+        train_dataset, = WLMDataset(vocab=vocab, data_select='train')
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     eval_batch_size = 10
     train_data = batchify(train_dataset.data, args.batch_size)
