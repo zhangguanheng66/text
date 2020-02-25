@@ -188,7 +188,7 @@ if __name__ == "__main__":
 
     lr = args.lr
     optimizer = torch.optim.SGD(model.parameters(), lr=lr)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1.0, gamma=0.25)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1.0, gamma=0.1)
     best_val_loss = None
 
     for epoch in range(1, args.epochs + 1):
@@ -206,8 +206,7 @@ if __name__ == "__main__":
             with open(args.save, 'wb') as f:
                 torch.save(model, f)
             best_val_loss = val_loss
-        else:
-            scheduler.step()
+        scheduler.step()
 
     ###############################################################################
     # Load the best saved model.
