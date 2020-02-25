@@ -142,7 +142,7 @@ URLS = {
         ['https://raw.githubusercontent.com/wojzaremba/lstm/master/data/ptb.train.txt',
          'https://raw.githubusercontent.com/wojzaremba/lstm/master/data/ptb.test.txt',
          'https://raw.githubusercontent.com/wojzaremba/lstm/master/data/ptb.valid.txt'],
-    'WMTNewsCrawl': 'http://www.statmt.org/wmt11/training-monolingual-news-2011.tgz'
+    'WMTNewsCrawl': 'http://www.statmt.org/wmt11/training-monolingual-news-2010.tgz'
 }
 
 
@@ -215,8 +215,9 @@ def _setup_datasets(dataset_name, tokenizer=get_tokenizer("basic_english"),
                              "or ('train',), got {}.".format(data_select))
         dataset_tar = download_from_url(URLS[dataset_name], root=root)
         extracted_files = extract_archive(dataset_tar)
+        year = kwargs.get('year', 2010)
         language = kwargs.get('language', 'en')
-        fname = 'news.2011.{}.shuffled'.format(language)
+        fname = 'news.{}.{}.shuffled'.format(year, language)
         extracted_files = [f for f in extracted_files if fname in f]
     else:
         dataset_tar = download_from_url(URLS[dataset_name], root=root)
