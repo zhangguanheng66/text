@@ -16,7 +16,18 @@ def pad_squad_data(batch):
     ans_pos_list = []
     seq_len = []
 
+    _batch = []
     for item in batch:
+        if item['question'].size(0) >= args.bptt:
+            continue
+        if item['context'].size(0) + item['question'].size(0) > args.bptt:
+            item['context'] = item['context'][:(args.bptt - item['question'].size(0))]
+#            print("observe over-size sequence")
+        if item['ans_pos'][1] >= item['context'].size(0):
+            continue
+        _batch.append(item)
+
+    for item in _batch:
         seq_list.append(torch.cat((item['context'], item['question'])))
         seq_len.append(seq_list[-1].size(0))
         ans_pos_list.append(item['ans_pos'])
@@ -28,7 +39,8 @@ def pad_squad_data(batch):
     tok_type = torch.stack([torch.cat((torch.zeros((item['context'].size(0))),
                                        torch.ones((max_l -
                                                    item['context'].size(0)))))
-                            for item in batch]).long().t().contiguous()
+                            for item in _batch]).long().t().contiguous()
+#    print('padded.size()', padded.size())
     return padded.to(device), torch.stack(ans_pos_list).to(device), tok_type.to(device)
 
 
@@ -138,6 +150,8 @@ if __name__ == "__main__":
                         help='upper epoch limit')
     parser.add_argument('--batch_size', type=int, default=6, metavar='N',
                         help='batch size')
+    parser.add_argument('--bptt', type=int, default=35,
+                        help='max. sequence length for context + question')
     parser.add_argument('--seed', type=int, default=1111,
                         help='random seed')
     parser.add_argument('--cuda', action='store_true',
