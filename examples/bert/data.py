@@ -9,8 +9,19 @@ from torchtext.vocab import Vocab
 URLS = {
     'SQuAD1':
         ['https://rajpurkar.github.io/SQuAD-explorer/dataset/train-v1.1.json',
-         'https://rajpurkar.github.io/SQuAD-explorer/dataset/dev-v1.1.json']
+         'https://rajpurkar.github.io/SQuAD-explorer/dataset/dev-v1.1.json'],
+    'WikiText2':
+        'https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-2-v1.zip',
+    'WikiText103':
+        'https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-103-v1.zip',
+    'PennTreebank':
+        ['https://raw.githubusercontent.com/wojzaremba/lstm/master/data/ptb.train.txt',
+         'https://raw.githubusercontent.com/wojzaremba/lstm/master/data/ptb.test.txt',
+         'https://raw.githubusercontent.com/wojzaremba/lstm/master/data/ptb.valid.txt'],
+    'WMTNewsCrawl': 'http://www.statmt.org/wmt11/training-monolingual-news-2010.tgz'
 }
+
+
 
 
 class QuestionAnswerDataset(torch.utils.data.Dataset):
@@ -132,19 +143,6 @@ from torchtext.vocab import build_vocab_from_iterator
 from torchtext.data.utils import get_tokenizer
 from torchtext.vocab import Vocab
 from torchtext.data.functional import numericalize_tokens_from_iterator
-
-URLS = {
-    'WikiText2':
-        'https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-2-v1.zip',
-    'WikiText103':
-        'https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-103-v1.zip',
-    'PennTreebank':
-        ['https://raw.githubusercontent.com/wojzaremba/lstm/master/data/ptb.train.txt',
-         'https://raw.githubusercontent.com/wojzaremba/lstm/master/data/ptb.test.txt',
-         'https://raw.githubusercontent.com/wojzaremba/lstm/master/data/ptb.valid.txt'],
-    'WMTNewsCrawl': 'http://www.statmt.org/wmt11/training-monolingual-news-2010.tgz'
-}
-
 
 class LanguageModelingDataset(torch.utils.data.Dataset):
     """Defines a dataset for language modeling.
