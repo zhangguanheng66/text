@@ -215,9 +215,10 @@ class MLMTask(nn.Module):
         self.mlm_head.weight.data.uniform_(-initrange, initrange)
 
     def forward(self, src, token_type_input=None):
+        src = src.transpose(0, 1)  # Wrap up by nn.DataParallel
         output = self.bert_model(src, token_type_input)
         output = self.mlm_head(output)
-        return output
+        return output.transpose(0, 1)  # Wrap up by nn.DataParallel
 
 
 class QuestionAnswerTask(nn.Module):

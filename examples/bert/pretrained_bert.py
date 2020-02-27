@@ -59,7 +59,9 @@ def evaluate(data_source):
             targets = torch.stack([data[i] for i in range(lm_mask.size(0)) if lm_mask[i]]).view(-1)
             data = data.masked_fill(lm_mask.bool().unsqueeze(1), mask_id)
 
+            data = data.transpose(0, 1)  # Wrap up by nn.DataParallel
             output = model(data)
+            output = output.transpose(0, 1)  # Wrap up by nn.DataParallel
             output = torch.stack([output[i] for i in range(lm_mask.size(0)) if lm_mask[i]])
             output_flat = output.view(-1, ntokens)
             total_loss += len(data) * criterion(output_flat, targets).item()
@@ -89,7 +91,9 @@ def train():
         # Starting each batch, we detach the hidden state from how it was previously produced.
         # If we didn't, the model would try backpropagating all the way to start of the dataset.
         optimizer.zero_grad()
+        data = data.transpose(0, 1)  # Wrap up by nn.DataParallel
         output = model(data)
+        output = output.transpose(0, 1)  # Wrap up by nn.DataParallel
         output = torch.stack([output[i] for i in range(lm_mask.size(0)) if lm_mask[i]])
         loss = criterion(output.view(-1, ntokens), targets)
         loss.backward()
@@ -219,6 +223,7 @@ if __name__ == "__main__":
 
     ntokens = len(train_dataset.get_vocab())
     model = MLMTask(ntokens, args.emsize, args.nhead, args.nhid, args.nlayers, args.dropout).to(device)
+    model = nn.DataParallel(model)  # Wrap up by nn.DataParallel
     criterion = nn.CrossEntropyLoss()
 
     ###############################################################################
@@ -265,6 +270,6 @@ if __name__ == "__main__":
     # Save the bert model layer
     ###############################################################################
     with open(args.save, 'wb') as f:
-        torch.save(model.bert_model, f)
+        torch.save(model.module.bert_model, f)  # Wrap up by nn.DataParallel
 
 # python main.py --seed 6868 --epochs 3 --emsize 256 --nhid 3072  --nlayers 12 --nhead 16 --save-vocab squad_vocab.pt
