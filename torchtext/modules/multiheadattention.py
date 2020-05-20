@@ -35,28 +35,18 @@ class MultiheadAttentionContainer(torch.nn.Module):
         self.out_proj = out_proj
 
     def forward(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor,
-                attn_mask: Optional[torch.Tensor] = None,
-                bias_k: Optional[torch.Tensor] = None,
-                bias_v: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
+                **kwargs) -> Tuple[torch.Tensor, torch.Tensor]:
         r"""
 
         Args:
             query, key, value (Tensor): map a query and a set of key-value pairs to an output.
                 See "Attention Is All You Need" for more details.
-            attn_mask (Tensor, optional): 3D mask that prevents attention to certain positions. The type of attn_mask
-                should be same with that of attn_mask in the attention layer.
-            bias_k and bias_v: (Tensor, optional): one more key and value sequence to be added at
-                sequence dim (dim=-3). Those are used for incremental decoding. Users should provide
-                non-None to both arguments in order to activate them.
 
         Shape:
             - Inputs:
             - query: :math:`(L, N, E)`
             - key: :math:`(S, N, E)`
             - value: :math:`(S, N, E)`
-            - attn_mask: :math:`(N * H, L, S)`, positions with ``True`` are not allowed to attend
-                while ``False`` values will be unchanged.
-            - bias_k and bias_v:bias: :math:`(1, N * H, E / H)`
 
             - Outputs:
             - attn_output: :math:`(L, N, E)`
@@ -79,8 +69,7 @@ class MultiheadAttentionContainer(torch.nn.Module):
         head_dim = v.size(-1) // self.nhead
         v = v.reshape(src_len, bsz * self.nhead, head_dim)
 
-        attn_output, attn_output_weights = self.attention_layer(q, k, v, attn_mask=attn_mask,
-                                                                bias_k=bias_k, bias_v=bias_v)
+        attn_output, attn_output_weights = self.attention_layer(q, k, v, **kwargs)
         attn_output = attn_output.reshape(tgt_len, bsz, embed_dim)
         attn_output = self.out_proj(attn_output)
         return attn_output, attn_output_weights
