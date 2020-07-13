@@ -7,6 +7,27 @@ from torchtext.datasets.text_classification import URLS
 from torchtext.data.functional import generate_sp_model, \
     load_sp_model, sentencepiece_numericalizer
 from torchtext.datasets import text_classification
+from torchtext.experimental.vocab import Vocab
+from collections import OrderedDict
+import sentencepiece as spm
+from torchtext.experimental.functional import sequential_transforms
+
+
+def PretrainedSP(model_file, cutoff_idx=3, specials=('<unk>', '<pad>', '<mask>', '<sep>', '<s>', '</s>')):
+    """Define PretainedSP
+
+    Examples:
+        >>> from spm_dataset import PretrainedSP
+        >>> tokenizer_vocab = PretrainedSP('m_user.model')
+        >>> sample_txt = 'Python wrapper for SentencePiece. This API will offer the encoding'
+        >>> tokenizer_vocab(sample_txt)
+    """
+    sp = spm.SentencePieceProcessor()
+    sp.Load(model_file)
+    vocab_list = [sp.IdToPiece(i) for i in range(cutoff_idx, sp.GetPieceSize())]
+    vocab = Vocab(OrderedDict([(token, 1) for token in vocab_list]),
+                  specials=('<unk>', '<pad>', '<mask>', '<sep>', '<s>', '</s>'))
+    return sequential_transforms(sp.EncodeAsPieces, vocab.lookup_indices)
 
 
 def _create_data_with_sp_transform(sp_generator, data_path):
