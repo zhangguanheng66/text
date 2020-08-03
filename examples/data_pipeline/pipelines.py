@@ -87,6 +87,10 @@ def build_pytext_vocab_pipeline(vocab_file):
     return pipeline, jit_pipeline
 
 
+from torchtext.experimental.transforms import (
+    BasicEnglishNormalize,
+)
+from torchtext.experimental.vectors import FastText
 def build_fasttext_vector_pipeline():
     tokenizer = BasicEnglishNormalize()
     vector = FastText()
