@@ -312,22 +312,21 @@ Vocab _load_vocab_from_file(const std::string &file_path,
       parse_vocab_file_chunk(file_path, offsets[j], i,
                              std::min(num_lines, i + chunk_size), counter_ptr);
       std::lock_guard<std::mutex> lk(m);
-      thread_count--;
+      counter--;
       cv.notify_all();
     });
-    chunk_counters.push_back(counter_ptr);
+    chunk_tokens.push_back(tokens_ptr);
     j++;
   }
 
   // block until all threads finish execution
   std::unique_lock<std::mutex> lock(m);
-  cv.wait(lock, [&thread_count] { return thread_count == 0; });
+  cv.wait(lock, [&counter] { return counter == 0; });
 
   IndexDict stoi;
   StringList tokens;
   std::tie(stoi, tokens) =
-      _concat_tokens(chunk_counters, unk_token, min_freq, num_lines);
-
+      _concat_tokens(chunk_tokens, unk_token, min_freq, num_lines);
   int64_t unk_index = stoi.find(unk_token)->second;
 
   return Vocab(std::move(tokens), std::move(stoi), unk_token, unk_index);
