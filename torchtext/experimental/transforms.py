@@ -96,7 +96,7 @@ class BasicEnglishNormalize(nn.Module):
     def is_jitable(self):
         return not isinstance(self.regex_tokenizer, RegexTokenizerPybind)
 
-    def forward(self, lines: List[str]) -> List[List[str]]:
+    def forward(self, line: str) -> List[str]:
         r"""
         Args:
             lines (List[str]): a list of text to tokenize.
@@ -104,10 +104,7 @@ class BasicEnglishNormalize(nn.Module):
         Returns:
             List[List[str]]: a list of token list after normalizing and splitting on whitespace.
         """
-        tokens: List[List[str]] = []
-        for line in lines:
-            tokens.append(self.regex_tokenizer.forward(line))
-        return tokens
+        return self.regex_tokenizer.forward(line)
 
     def to_ivalue(self):
         r"""Return a JITable BasicEnglishNormalize.
@@ -130,18 +127,15 @@ class RegexTokenizer(nn.Module):
     def is_jitable(self):
         return not isinstance(self.regex_tokenizer, RegexTokenizerPybind)
 
-    def forward(self, lines: List[str]) -> List[List[str]]:
+    def forward(self, line: str) -> List[str]:
         r"""
         Args:
             lines (List[str]): a list of text to tokenize.
 
         Returns:
-            List[List[str]]: a list of token list after normalizing and splitting on whitespace.
+            List[List[str]]: a list of token list after regex tokenizer.
         """
-        tokens: List[List[str]] = []
-        for line in lines:
-            tokens.append(self.regex_tokenizer.forward(line))
-        return tokens
+        return self.regex_tokenizer.forward(line)
 
     def to_ivalue(self):
         r"""Return a JITable RegexTokenizer.
@@ -159,7 +153,7 @@ class TextSequentialTransforms(nn.Sequential):
             >>> txt_pipeline = TextSequentialTransforms(tokenizer)
             >>> jit_txt_pipeline = torch.jit.script(txt_pipeline)
     """
-    def forward(self, input: List[str]):
+    def forward(self, input: str):
         for module in self:
             input = module(input)
         return input
@@ -227,7 +221,7 @@ class SentencePieceTokenizer(nn.Module):
         super(SentencePieceTokenizer, self).__init__()
         self.sp_model = spm_model
 
-    def forward(self, lines: List[str]) -> List[List[str]]:
+    def forward(self, line: str) -> List[str]:
         r"""
         Args:
             lines: a list of the input strings
@@ -237,13 +231,10 @@ class SentencePieceTokenizer(nn.Module):
             >>> [['▁the', '▁pre', 'trained', '▁sp', '▁model', '▁names']]
         """
 
-        tokens: List[List[str]] = []
-        for line in lines:
-            tokens.append(self.sp_model.EncodeAsPieces(line))
-        return tokens
+        return self.sp_model.EncodeAsPieces(line)
 
     @torch.jit.export
-    def decode(self, tokens_list: List[List[str]]) -> List[str]:
+    def decode(self, tokens_list: List[str]) -> str:
         r"""
         Args:
             tokens_list: the tokens list for decoder
@@ -252,10 +243,7 @@ class SentencePieceTokenizer(nn.Module):
             >>> spm_transform.decoder([['▁the', '▁pre', 'trained', '▁sp', '▁model', '▁names']])
             >>> ['the pretrained sp model names']
         """
-        string_list: List[str] = []
-        for tokens in tokens_list:
-            string_list.append(self.sp_model.DecodePieces(tokens))
-        return string_list
+        return self.sp_model.DecodePieces(tokens)
 
 
 class SentencePieceTransform(nn.Module):
@@ -277,7 +265,7 @@ class SentencePieceTransform(nn.Module):
         super(SentencePieceTransform, self).__init__()
         self.sp_model = spm_model
 
-    def forward(self, lines: List[str]) -> List[List[int]]:
+    def forward(self, line: str) -> List[int]:
         r"""
         Args:
             lines: a list of the input strings
@@ -286,13 +274,10 @@ class SentencePieceTransform(nn.Module):
             >>> spm_transform(['the pretrained sp model names'])
             >>> [[9, 1546, 18811, 2849, 2759, 2202]]
         """
-        ids: List[List[int]] = []
-        for line in lines:
-            ids.append(self.sp_model.EncodeAsIds(line))
-        return ids
+        return self.sp_model.EncodeAsIds(line)
 
     @torch.jit.export
-    def decode(self, ids: List[List[int]]) -> List[str]:
+    def decode(self, ids: List[int]) -> str:
         r"""
         Args:
             ids: a list of the integer list for decoder
@@ -301,10 +286,7 @@ class SentencePieceTransform(nn.Module):
             >>> spm_transform.decoder([[9, 1546, 18811, 2849, 2759, 2202]])
             >>> ['the pretrained sp model names']
         """
-        string_list: List[str] = []
-        for _id in ids:
-            string_list.append(self.sp_model.DecodeIds(_id))
-        return string_list
+        return self.sp_model.DecodeIds(ids)
 
 
 class ToLongTensor(nn.Module):
@@ -318,7 +300,7 @@ class ToLongTensor(nn.Module):
     def __init__(self):
         super(ToLongTensor, self).__init__()
 
-    def forward(self, data: List[List[int]]) -> Tensor:
+    def forward(self, data: List[int]) -> Tensor:
         r"""
         Args:
             data: the data converted to tensor
