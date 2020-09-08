@@ -285,6 +285,7 @@ constexpr int64_t GRAIN_SIZE = 13107;
 Vocab _load_vocab_from_file(const std::string &file_path,
                             const std::string &unk_token,
                             const int64_t min_freq, const int64_t num_cpus) {
+
   std::cerr << "[INFO] Reading file " << file_path << std::endl;
 
   int64_t num_lines = _infer_lines(file_path);
@@ -296,21 +297,21 @@ Vocab _load_vocab_from_file(const std::string &file_path,
   std::vector<size_t> offsets;
   impl::infer_offsets(file_path, num_lines, chunk_size, offsets);
 
-  std::vector<std::shared_ptr<IndexDict>> chunk_counters;
+  std::vector<std::shared_ptr<StringList>> chunk_tokens;
 
   std::mutex m;
   std::condition_variable cv;
-  std::atomic<int> thread_count(0);
+  std::atomic<int> counter(0);
 
   // create threads
   int64_t j = 0;
   for (int64_t i = 0; i < num_lines; i += chunk_size) {
-    auto counter_ptr = std::make_shared<IndexDict>();
+    auto tokens_ptr = std::make_shared<StringList>();
 
-    thread_count++;
-    at::launch([&, file_path, num_lines, chunk_size, j, i, counter_ptr]() {
+    counter++;
+    at::launch([&, file_path, num_lines, chunk_size, j, i, tokens_ptr]() {
       parse_vocab_file_chunk(file_path, offsets[j], i,
-                             std::min(num_lines, i + chunk_size), counter_ptr);
+                             std::min(num_lines, i + chunk_size), tokens_ptr);
       std::lock_guard<std::mutex> lk(m);
       counter--;
       cv.notify_all();
