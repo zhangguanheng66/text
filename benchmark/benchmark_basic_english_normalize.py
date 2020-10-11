@@ -2,7 +2,7 @@ import time
 
 import torch
 from torchtext.experimental.datasets.raw import AG_NEWS
-from torchtext.experimental.transforms import basic_english_normalize
+from torchtext.experimental.transforms import build_basic_english_normalize
 from torchtext.data.utils import get_tokenizer
 
 
@@ -14,7 +14,7 @@ def benchmark_basic_english_normalize():
         print("Tokenization time:", time.monotonic() - t0)
 
     existing_basic_english_tokenizer = get_tokenizer("basic_english")
-    experimental_basic_english_normalize = basic_english_normalize()
+    experimental_basic_english_normalize = build_basic_english_normalize()
     experimental_jit_basic_english_normalize = torch.jit.script(experimental_basic_english_normalize.to_ivalue())
 
     # existing eager lookup

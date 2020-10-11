@@ -2,7 +2,7 @@ import time
 
 import torch
 from torchtext.experimental.datasets import AG_NEWS
-from torchtext.experimental.vectors import FastText as FastTextExperimental
+from torchtext.experimental.vectors import build_fasttext_vectors as FastTextExperimental
 from torchtext.vocab import FastText
 
 
