@@ -7,7 +7,7 @@ import torch.nn as nn
 from torchtext._torchtext import (
     Vocab as VocabPybind,
     _load_vocab_from_file,
-    _load_vocab_from_raw_text_file
+    _build_vocab_from_raw_text_file
 )
 
 __all__ = [
@@ -46,7 +46,7 @@ def build_vocab_from_raw_text_file(file_object, jited_tokenizer, min_freq=1, unk
         >>> jit_tokenizer = torch.jit.script(tokenizer.to_ivalue())
         >>> v = build_vocab_from_raw_text_file(f, jit_tokenizer)
     """
-    vocab_obj = _load_vocab_from_raw_text_file(file_object.name, unk_token, min_freq, num_cpus, jited_tokenizer)
+    vocab_obj = _build_vocab_from_raw_text_file(file_object.name, unk_token, min_freq, num_cpus, jited_tokenizer)
     return Vocab(vocab_obj)
 
 
