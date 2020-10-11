@@ -7,6 +7,16 @@ torchtext.experimental.transforms
 .. automodule:: torchtext.experimental.transforms
 .. currentmodule:: torchtext.experimental.transforms
 
+:hidden:`build_basic_english_normalize`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autofunction:: build_basic_english_normalize 
+
+:hidden:`build_regex_tokenizer`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autofunction:: build_regex_tokenizer 
+
 :hidden:`BasicEnglishNormalize`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

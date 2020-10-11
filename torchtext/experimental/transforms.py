@@ -9,8 +9,8 @@ import io
 
 
 __all__ = [
-    'basic_english_normalize',
-    'regex_tokenizer',
+    'build_basic_english_normalize',
+    'build_regex_tokenizer',
     'BasicEnglishNormalize',
     'RegexTokenizer',
     'TextSequentialTransforms',
@@ -25,7 +25,7 @@ __all__ = [
 ]
 
 
-def basic_english_normalize():
+def build_basic_english_normalize():
     r"""Basic normalization for a string sentence.
 
     Normalization includes
@@ -46,9 +46,9 @@ def basic_english_normalize():
 
     Examples:
         >>> import torch
-        >>> from torchtext.experimental.transforms import basic_english_normalize
+        >>> from torchtext.experimental.transforms import build_basic_english_normalize
         >>> test_sample = 'Basic English Normalization for a Line of Text'
-        >>> basic_eng_norm = basic_english_normalize()
+        >>> basic_eng_norm = build_basic_english_normalize()
         >>> jit_basic_eng_norm = torch.jit.script(basic_eng_norm.to_ivalue())
         >>> tokens = jit_basic_eng_norm(test_sample)
     """
@@ -71,7 +71,7 @@ def basic_english_normalize():
     return BasicEnglishNormalize(RegexTokenizerPybind(patterns, replacements, True))
 
 
-def regex_tokenizer(patterns_list):
+def build_regex_tokenizer(patterns_list):
     r"""Regex tokenizer for a string sentence that applies all regex replacements defined in patterns_list.
 
     Args:
@@ -80,12 +80,12 @@ def regex_tokenizer(patterns_list):
 
     Examples:
         >>> import torch
-        >>> from torchtext.experimental.transforms import regex_tokenizer
+        >>> from torchtext.experimental.transforms import build_regex_tokenizer
         >>> test_sample = 'Basic Regex Tokenization for a Line of Text'
         >>> patterns_list = [
             (r'\'', ' \'  '),
             (r'\"', '')]
-        >>> reg_tokenizer = regex_tokenizer(patterns_list)
+        >>> reg_tokenizer = build_regex_tokenizer(patterns_list)
         >>> jit_reg_tokenizer = torch.jit.script(reg_tokenizer)
         >>> tokens = jit_reg_tokenizer(test_sample)
     """
@@ -162,8 +162,8 @@ class TextSequentialTransforms(nn.Sequential):
     r"""A container to host a sequential text transforms.
         Example:
             >>> import torch
-            >>> from torchtext.experimental.transforms import basic_english_normalize, TextSequentialTransforms
-            >>> tokenizer = basic_english_normalize()
+            >>> from torchtext.experimental.transforms import build_basic_english_normalize, TextSequentialTransforms
+            >>> tokenizer = build_basic_english_normalize()
             >>> txt_pipeline = TextSequentialTransforms(tokenizer)
             >>> txt_pipeline('here is an example')
                 ['here', 'is', 'an', 'example']

@@ -17,8 +17,8 @@ from torchtext.data.functional import (
     simple_space_split,
 )
 from torchtext.experimental.transforms import (
-    basic_english_normalize,
-    regex_tokenizer
+    build_basic_english_normalize,
+    build_regex_tokenizer
 )
 
 from ..common.torchtext_test_case import TorchtextTestCase
@@ -95,7 +95,7 @@ class TestFunctional(TorchtextTestCase):
         ref_results = ["'", '.', ',', '(', ')', '!', '?', 'basic', 'english', 'normalization',
                        'for', 'a', 'line', 'of', 'text', "'", '.', ',', '(', ')', '!', '?']
 
-        basic_eng_norm = basic_english_normalize()
+        basic_eng_norm = build_basic_english_normalize()
         experimental_eager_tokens = basic_eng_norm(test_sample)
 
         jit_basic_eng_norm = torch.jit.script(basic_eng_norm.to_ivalue())
@@ -139,7 +139,7 @@ class TestFunctional(TorchtextTestCase):
             (r'\:', ' '),
             (r'\s+', ' ')]
 
-        r_tokenizer = regex_tokenizer(patterns_list)
+        r_tokenizer = build_regex_tokenizer(patterns_list)
         eager_tokens = r_tokenizer(test_sample)
 
         jit_r_tokenizer = torch.jit.script(r_tokenizer.to_ivalue())

@@ -8,7 +8,7 @@ from transforms import (
     vocab_func,
 )
 from torchtext.experimental.transforms import (
-    basic_english_normalize,
+    build_basic_english_normalize,
     TextSequentialTransforms,
     load_sp_tokenizer,
     load_sp_model,
@@ -55,7 +55,7 @@ def build_legacy_torchtext_vocab_pipeline(vocab_file):
 
 
 def build_experimental_torchtext_pipeline(hf_vocab_file):
-    tokenizer = basic_english_normalize()
+    tokenizer = build_basic_english_normalize()
     with open(hf_vocab_file, 'r') as f:
         vocab = vocab_from_file(f)
         pipeline = TextSequentialTransforms(tokenizer, vocab)
@@ -96,7 +96,7 @@ def build_legacy_pytext_vocab_pipeline(vocab_file):
 def build_legacy_pytext_script_vocab_pipeline(vocab_file):
     from pytext.torchscript.vocab import ScriptVocabulary
 
-    tokenizer = basic_english_normalize()
+    tokenizer = build_basic_english_normalize()
     with open(vocab_file, 'r') as f:
         vocab_counter = Counter([token for line in f for token in line.rstrip()])
         sorted_by_freq_tuples = sorted(vocab_counter.items(), key=lambda x: x[1], reverse=True)
@@ -117,7 +117,7 @@ def build_experimental_pytext_script_pipeline(vocab_file):
     sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "vocab"))
     from pytext_vocab import script_vocab
 
-    tokenizer = basic_english_normalize()
+    tokenizer = build_basic_english_normalize()
     f = open(vocab_file, 'r')
     vocab_counter = Counter([token for line in f for token in line.rstrip()])
     ordered_dict = OrderedDict(sorted(vocab_counter.items(), key=lambda x: x[1], reverse=True))
@@ -139,7 +139,7 @@ def build_legacy_fasttext_vector_pipeline():
 
 
 def build_experimental_fasttext_vector_pipeline():
-    tokenizer = basic_english_normalize()
+    tokenizer = build_basic_english_normalize()
     vector = FastTextExperimental()
 
     pipeline = TextSequentialTransforms(tokenizer, vector)
