@@ -17,10 +17,10 @@ import shutil
 import tempfile
 import os
 from torchtext.experimental.vectors import (
-    GloVe,
-    vectors,
-    FastText,
-    vectors_from_file_object,
+    build_glove_vectors,
+    build_vectors,
+    build_fasttext_vectors,
+    load_vectors_from_file_object,
 )
 from torchtext.utils import download_from_url
 
@@ -44,7 +44,7 @@ class TestTransformsWithAsset(TorchtextTestCase):
         with self.assertRaises(ValueError):
             # Test proper error raised when passing in empty tokens and vectors and
             # not passing in a user defined unk_tensor
-            vectors(tokens, vecs)
+            build_vectors(tokens, vecs)
 
         tensorA = torch.tensor([1, 0, 0], dtype=torch.int8)
         tokens = ['a']
@@ -52,7 +52,7 @@ class TestTransformsWithAsset(TorchtextTestCase):
 
         with self.assertRaises(TypeError):
             # Test proper error raised when vector is not of type torch.float
-            vectors(tokens, vecs)
+            build_vectors(tokens, vecs)
 
         with tempfile.TemporaryDirectory() as dir_name:
             # Test proper error raised when incorrect filename or dim passed into GloVe
@@ -63,11 +63,11 @@ class TestTransformsWithAsset(TorchtextTestCase):
 
             with self.assertRaises(ValueError):
                 # incorrect name
-                GloVe(name='UNK', dim=50, root=dir_name, validate_file=False)
+                build_glove_vectors(name='UNK', dim=50, root=dir_name, validate_file=False)
 
             with self.assertRaises(ValueError):
                 # incorrect dim
-                GloVe(name='6B', dim=500, root=dir_name, validate_file=False)
+                build_glove_vectors(name='6B', dim=500, root=dir_name, validate_file=False)
 
     def test_glove(self):
         # copy the asset file into the expected download location
@@ -78,7 +78,7 @@ class TestTransformsWithAsset(TorchtextTestCase):
         with tempfile.TemporaryDirectory() as dir_name:
             data_path = os.path.join(dir_name, asset_name)
             shutil.copy(asset_path, data_path)
-            vectors_obj = GloVe(root=dir_name, validate_file=False)
+            vectors_obj = build_glove_vectors(root=dir_name, validate_file=False)
             jit_vectors_obj = torch.jit.script(vectors_obj.to_ivalue())
 
             # The first 3 entries in each vector.
@@ -102,10 +102,10 @@ class TestTransformsWithAsset(TorchtextTestCase):
             data_path = os.path.join(dir_name, asset_name)
             shutil.copy(asset_path, data_path)
 
-            glove_50d = GloVe(name='6B', dim=50, root=dir_name, validate_file=False)
-            glove_100d = GloVe(name='6B', dim=100, root=dir_name, validate_file=False)
-            glove_200d = GloVe(name='6B', dim=200, root=dir_name, validate_file=False)
-            glove_300d = GloVe(name='6B', dim=300, root=dir_name, validate_file=False)
+            glove_50d = build_glove_vectors(name='6B', dim=50, root=dir_name, validate_file=False)
+            glove_100d = build_glove_vectors(name='6B', dim=100, root=dir_name, validate_file=False)
+            glove_200d = build_glove_vectors(name='6B', dim=200, root=dir_name, validate_file=False)
+            glove_300d = build_glove_vectors(name='6B', dim=300, root=dir_name, validate_file=False)
             vectors_objects = [glove_50d, glove_100d, glove_200d, glove_300d]
 
             # The first 3 entries in each vector.
@@ -182,7 +182,7 @@ class TestTransformsWithAsset(TorchtextTestCase):
         asset_name = 'vectors_test.csv'
         asset_path = get_asset_path(asset_name)
         f = open(asset_path, 'r')
-        vectors_obj = vectors_from_file_object(f)
+        vectors_obj = load_vectors_from_file_object(f)
 
         expected_tensorA = torch.tensor([1, 0, 0], dtype=torch.float)
         expected_tensorB = torch.tensor([0, 1, 0], dtype=torch.float)
@@ -201,7 +201,7 @@ class TestTransformsWithAsset(TorchtextTestCase):
         with tempfile.TemporaryDirectory() as dir_name:
             data_path = os.path.join(dir_name, asset_name)
             shutil.copy(asset_path, data_path)
-            vectors_obj = FastText(root=dir_name, validate_file=False)
+            vectors_obj = build_fasttext_vectors(root=dir_name, validate_file=False)
             jit_vectors_obj = torch.jit.script(vectors_obj.to_ivalue())
 
             # The first 3 entries in each vector.
