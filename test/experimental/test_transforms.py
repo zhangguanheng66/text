@@ -3,8 +3,8 @@ from test.common.assets import get_asset_path
 from test.common.torchtext_test_case import TorchtextTestCase
 from torchtext.experimental.transforms import (
     VectorTransform,
-    sentencepiece_processor,
-    sentencepiece_tokenizer,
+    load_sp_processor,
+    load_sp_tokenizer,
 )
 from torchtext.experimental.vectors import FastText
 import shutil
@@ -13,9 +13,9 @@ import os
 
 
 class TestTransforms(TorchtextTestCase):
-    def test_sentencepiece_processor(self):
+    def test_load_sp_processor(self):
         model_path = get_asset_path('spm_example.model')
-        spm_transform = sentencepiece_processor(model_path)
+        spm_transform = load_sp_processor(model_path)
         jit_spm_transform = torch.jit.script(spm_transform.to_ivalue())
         test_sample = 'SentencePiece is an unsupervised text tokenizer and detokenizer'
         ref_results = [15340, 4286, 981, 1207, 1681, 17, 84, 684, 8896, 5366,
@@ -25,9 +25,9 @@ class TestTransforms(TorchtextTestCase):
         self.assertEqual(spm_transform.decode(ref_results), test_sample)
         self.assertEqual(jit_spm_transform.decode(ref_results), test_sample)
 
-    def test_sentencepiece_tokenizer(self):
+    def test_load_sp_tokenizer(self):
         model_path = get_asset_path('spm_example.model')
-        spm_tokenizer = sentencepiece_tokenizer(model_path)
+        spm_tokenizer = load_sp_tokenizer(model_path)
         jit_spm_tokenizer = torch.jit.script(spm_tokenizer.to_ivalue())
         test_sample = 'SentencePiece is an unsupervised text tokenizer and detokenizer'
         ref_results = ['\u2581Sent', 'ence', 'P', 'ie', 'ce', '\u2581is',

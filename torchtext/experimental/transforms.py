@@ -16,9 +16,9 @@ __all__ = [
     'TextSequentialTransforms',
     'PRETRAINED_SP_MODEL',
     'load_sp_model',
-    'sentencepiece_tokenizer',
+    'load_sp_tokenizer',
     'SentencePieceTokenizer',
-    'sentencepiece_processor',
+    'load_sp_processor',
     'SentencePieceProcessor',
     'VocabTransform',
     'VectorTransform'
@@ -239,7 +239,7 @@ def load_sp_model(sp_model):
             ]))
 
 
-def sentencepiece_tokenizer(sp_model):
+def load_sp_tokenizer(sp_model):
     r"""Factory function to generate SentencePieceTokenizer from a pretrained SentencePiece model
 
     Args:
@@ -247,8 +247,8 @@ def sentencepiece_tokenizer(sp_model):
 
     Examples:
         >>> import torch
-        >>> from torchtext.experimental.transforms import sentencepiece_tokenizer
-        >>> spm_tokenizer = sentencepiece_tokenizer('m_user.model')
+        >>> from torchtext.experimental.transforms import load_sp_tokenizer
+        >>> spm_tokenizer = load_sp_tokenizer('m_user.model')
         >>> jit_spm_tokenizer = torch.jit.script(spm_tokenizer.to_ivalue())
     """
     spm = load_sp_model(sp_model)
@@ -296,7 +296,7 @@ class SentencePieceTokenizer(nn.Module):
         return SentencePieceTokenizer(torchbind_spm)
 
 
-def sentencepiece_processor(sp_model):
+def load_sp_processor(sp_model):
     r"""Factory function to generate SentencePieceProcessor from a pretrained SentencePiece model
 
     Args:
@@ -304,8 +304,8 @@ def sentencepiece_processor(sp_model):
 
     Examples:
         >>> import torch
-        >>> from torchtext.experimental.transforms import sentencepiece_processor
-        >>> spm_processor = sentencepiece_processor('m_user.model')
+        >>> from torchtext.experimental.transforms import load_sp_processor
+        >>> spm_processor = load_sp_processor('m_user.model')
         >>> jit_spm_processor = torch.jit.script(spm_processor.to_ivalue())
     """
     spm = load_sp_model(sp_model)

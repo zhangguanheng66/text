@@ -2,11 +2,11 @@ import torch
 from test.common.torchtext_test_case import TorchtextTestCase
 from ..common.assets import get_asset_path
 from torchtext.experimental.transforms import (
-    sentencepiece_tokenizer,
+    load_sp_tokenizer,
     basic_english_normalize,
     VocabTransform,
     PRETRAINED_SP_MODEL,
-    sentencepiece_processor,
+    load_sp_processor,
     TextSequentialTransforms,
 )
 from torchtext.experimental.vocab import (
@@ -152,9 +152,9 @@ class TestTransformsWithAsset(TorchtextTestCase):
             self.assertEqual(v.get_itos(), expected_itos)
             self.assertEqual(dict(v.get_stoi()), expected_stoi)
 
-    def test_builtin_pretrained_sentencepiece_processor(self):
+    def test_builtin_pretrained_load_sp_processor(self):
         sp_model_path = download_from_url(PRETRAINED_SP_MODEL['text_unigram_25000'])
-        spm_tokenizer = sentencepiece_tokenizer(sp_model_path)
+        spm_tokenizer = load_sp_tokenizer(sp_model_path)
         _path = os.path.join(self.project_root, '.data', 'text_unigram_25000.model')
         os.remove(_path)
         test_sample = 'the pretrained spm model names'
@@ -162,7 +162,7 @@ class TestTransformsWithAsset(TorchtextTestCase):
         self.assertEqual(spm_tokenizer(test_sample), ref_results)
 
         sp_model_path = download_from_url(PRETRAINED_SP_MODEL['text_bpe_25000'])
-        spm_transform = sentencepiece_processor(sp_model_path)
+        spm_transform = load_sp_processor(sp_model_path)
         _path = os.path.join(self.project_root, '.data', 'text_bpe_25000.model')
         os.remove(_path)
         test_sample = 'the pretrained spm model names'
