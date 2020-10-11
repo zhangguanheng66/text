@@ -14,22 +14,22 @@ torchtext.experimental.vectors
     :members:
     :special-members:
 
-:hidden:`vectors`
-~~~~~~~~~~~~~~~~~
+:hidden:`build_vectors`
+~~~~~~~~~~~~~~~~~~~~~~~
 
-.. autofunction:: vectors
+.. autofunction:: build_vectors
 
-:hidden:`vectors_from_file_object`
+:hidden:`load_vectors_from_file_object`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. autofunction:: vectors_from_file_object
+.. autofunction:: load_vectors_from_file_object
 
-:hidden:`FastText`
-~~~~~~~~~~~~~~~~~~~
+:hidden:`build_fasttext_vectors`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. autofunction:: FastText
+.. autofunction:: build_fasttext_vectors
 
-:hidden:`GloVe`
-~~~~~~~~~~~~~~~~
+:hidden:`build_glove_vectors`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. autofunction:: GloVe
+.. autofunction:: build_glove_vectors

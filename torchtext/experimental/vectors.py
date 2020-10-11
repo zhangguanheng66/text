@@ -15,17 +15,17 @@ from torchtext._torchtext import (
 )
 
 __all__ = [
-    'FastText',
-    'GloVe',
-    'vectors_from_file_object',
-    'vectors',
+    'build_fasttext_vectors',
+    'build_glove_vectors',
+    'load_vectors_from_file_object',
+    'build_vectors',
     'Vectors'
 ]
 
 logger = logging.getLogger(__name__)
 
 
-def FastText(language="en", unk_tensor=None, root=".data", validate_file=True, num_cpus=32):
+def build_fasttext_vectors(language="en", unk_tensor=None, root=".data", validate_file=True, num_cpus=32):
     r"""Create a FastText Vectors object.
 
     Args:
@@ -60,7 +60,7 @@ def FastText(language="en", unk_tensor=None, root=".data", validate_file=True, n
     return vectors_obj
 
 
-def GloVe(name="840B", dim=300, unk_tensor=None, root=".data", validate_file=True, num_cpus=32):
+def build_glove_vectors(name="840B", dim=300, unk_tensor=None, root=".data", validate_file=True, num_cpus=32):
     r"""Create a GloVe Vectors object.
 
     Args:
@@ -144,7 +144,7 @@ def GloVe(name="840B", dim=300, unk_tensor=None, root=".data", validate_file=Tru
     return vectors_obj
 
 
-def vectors_from_file_object(file_like_object, delimiter=",", unk_tensor=None, num_cpus=10):
+def load_vectors_from_file_object(file_like_object, delimiter=",", unk_tensor=None, num_cpus=10):
     r"""Create a Vectors object from a csv file like object.
 
     Note that the tensor corresponding to each vector is of type `torch.float`.
@@ -174,7 +174,7 @@ def vectors_from_file_object(file_like_object, delimiter=",", unk_tensor=None, n
     return Vectors(vectors_obj)
 
 
-def vectors(tokens, vectors, unk_tensor=None):
+def build_vectors(tokens, vectors, unk_tensor=None):
     r"""Factory method for creating a vectors object which maps tokens to vectors.
     Arguments:
         tokens (List[str]): a list of tokens.

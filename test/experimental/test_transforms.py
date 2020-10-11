@@ -6,7 +6,7 @@ from torchtext.experimental.transforms import (
     load_sp_processor,
     load_sp_tokenizer,
 )
-from torchtext.experimental.vectors import FastText
+from torchtext.experimental.vectors import build_fasttext_vectors
 import shutil
 import tempfile
 import os
@@ -47,7 +47,7 @@ class TestTransforms(TorchtextTestCase):
         with tempfile.TemporaryDirectory() as dir_name:
             data_path = os.path.join(dir_name, asset_name)
             shutil.copy(asset_path, data_path)
-            vector_transform = VectorTransform(FastText(root=dir_name, validate_file=False))
+            vector_transform = VectorTransform(build_fasttext_vectors(root=dir_name, validate_file=False))
             jit_vector_transform = torch.jit.script(vector_transform.to_ivalue())
             # The first 3 entries in each vector.
             expected_fasttext_simple_en = torch.tensor([[-0.065334, -0.093031, -0.017571],

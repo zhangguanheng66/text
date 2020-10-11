@@ -17,7 +17,7 @@ from torchtext.data.utils import get_tokenizer
 from torchtext.experimental.functional import (
     sequential_transforms,
 )
-from torchtext.experimental.vectors import FastText as FastTextExperimental
+from torchtext.experimental.vectors import build_fasttext_vectors as FastTextExperimental
 from torchtext.experimental.vocab import load_vocab_from_file
 from torchtext.vocab import FastText
 
