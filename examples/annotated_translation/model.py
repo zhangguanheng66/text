@@ -55,4 +55,4 @@ class AnnotatedTransformer(nn.Module):
         tgt = self.tgt_pos_embed(self.tgt_embed(tgt) * math.sqrt(self.d_model))
         # print(src.is_cuda, tgt.is_cuda, src_mask.is_cuda, tgt_mask.is_cuda)
         out = self.transformer(src, tgt, src_mask, tgt_mask)
-        return out
+        return self.generator(out)
