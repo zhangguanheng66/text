@@ -79,11 +79,11 @@ OUTPUT_DIM = len(en_vocab)
 # HID_DIM = 2048
 # NHEADS = 8
 
-NLAYERS = 2
-EMB_DIM = 32
-HID_DIM = 128
-NHEADS = 4
-LR = 1.0  # learning rate
+NLAYERS = 6
+EMB_DIM = 128
+HID_DIM = 512
+NHEADS = 16
+LR = 0.001  # learning rate
 
 model = AnnotatedTransformer(INPUT_DIM, OUTPUT_DIM, N=NLAYERS,
                              d_model=EMB_DIM, d_ff=HID_DIM, h=NHEADS).to(device)
