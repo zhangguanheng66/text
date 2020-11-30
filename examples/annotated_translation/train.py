@@ -80,9 +80,9 @@ OUTPUT_DIM = len(en_vocab)
 # NHEADS = 8
 
 NLAYERS = 2
-EMB_DIM = 128
-HID_DIM = 512
-NHEADS = 16
+EMB_DIM = 32
+HID_DIM = 128
+NHEADS = 4
 LR = 0.005  # learning rate
 
 model = AnnotatedTransformer(INPUT_DIM, OUTPUT_DIM, N=NLAYERS,
