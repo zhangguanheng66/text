@@ -79,17 +79,17 @@ OUTPUT_DIM = len(en_vocab)
 # HID_DIM = 2048
 # NHEADS = 8
 
-NLAYERS = 6
+NLAYERS = 2
 EMB_DIM = 128
 HID_DIM = 512
 NHEADS = 16
-LR = 0.001  # learning rate
+LR = 0.005  # learning rate
 
 model = AnnotatedTransformer(INPUT_DIM, OUTPUT_DIM, N=NLAYERS,
                              d_model=EMB_DIM, d_ff=HID_DIM, h=NHEADS).to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=LR)
 criterion = nn.CrossEntropyLoss(ignore_index=PAD_IDX)
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1.0, gamma=0.95)
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1.0, gamma=0.75)
 mask_func = model.transformer.generate_square_subsequent_mask
 # print(INPUT_DIM, OUTPUT_DIM)
 
@@ -171,7 +171,7 @@ for epoch in range(N_EPOCHS):
 
     epoch_mins, epoch_secs = epoch_time(start_time, end_time)
     print(f'Epoch: {epoch+1:02} | Time: {epoch_mins}m {epoch_secs}s | LR: {scheduler.get_lr()[0]:7.3f}')
-    print(f'\tTrain Loss: {train_loss:.3f} | Val. Loss: {valid_loss:.3f}')
+    print(f'\tTrain Loss: {train_loss:.5f} | Val. Loss: {valid_loss:.5f}')
     scheduler.step()
 test_loss = evaluate(model, test_iter, criterion)
 
