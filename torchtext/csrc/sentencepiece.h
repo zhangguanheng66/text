@@ -17,6 +17,7 @@ public:
   std::string content_;
 
   explicit SentencePiece(const std::string &content);
+  SentencePiece(const SentencePiece&&);
   std::vector<std::string> Encode(const std::string &input) const;
   std::vector<int64_t> EncodeAsIds(const std::string &input) const;
   std::string DecodeIds(const std::vector<int64_t> &ids) const;

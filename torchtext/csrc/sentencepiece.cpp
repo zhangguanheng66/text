@@ -10,6 +10,15 @@ SentencePiece::SentencePiece(const std::string &content) : content_(content) {
   }
 }
 
+SentencePiece::SentencePiece(const SentencePiece && spm) : content_(spm.content_) {
+  const auto status = processor_.LoadFromSerializedProto(content_);
+  if (!status.ok()) {
+    throw std::runtime_error("Failed to load SentencePiece model. Error: " +
+                             status.ToString());
+  }
+}
+
+
 std::vector<std::string> SentencePiece::Encode(const std::string &input) const {
   std::vector<std::string> pieces;
   processor_.Encode(input, &pieces);
